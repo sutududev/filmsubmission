@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { renderer } from './renderer'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { api } from './routes'
 import type { Bindings } from './types'
@@ -7,7 +6,6 @@ import type { Bindings } from './types'
 const app = new Hono<{ Bindings: Bindings }>()
 
 app.use('/static/*', serveStatic({ root: './public' }))
-app.use(renderer)
 
 app.route('/api', api)
 
