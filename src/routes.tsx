@@ -518,6 +518,167 @@ api.post('/seed-sample', async (c) => {
   return c.json({ ok: true, ids: [id1, id2] })
 })
 
+// Seed full demo content for three titles using external images
+api.post('/seed-full', async (c) => {
+  const base = new URL(c.req.url)
+  const origin = `${base.protocol}//${base.host}`
+  if (!c.env.R2) return c.json({ error: 'R2 not bound' }, 500)
+
+  async function ensureTitle(name: string, status = 'ready') {
+    const rs = await c.env.DB.prepare('SELECT id FROM titles WHERE name = ?').bind(name).all();
+    const existing = (rs.results as any[])?.[0]
+    if (existing) return Number(existing.id)
+    const r = await c.env.DB.prepare('INSERT INTO titles (name, status) VALUES (?,?)').bind(name, status).run();
+    const id = Number(r.meta.last_row_id)
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(id, 'created_title', JSON.stringify({ name })).run()
+    return id
+  }
+
+  async function setProfile(id: number, p: any){
+    await c.env.DB.prepare('INSERT OR IGNORE INTO title_profiles (title_id) VALUES (?)').bind(id).run()
+    const fields = ['sales_title','synopsis','genres','keywords','format','spoken_language','dubbed_languages','caption_languages','origin_country','runtime_minutes','release_date','rating_system','rating','production_company','website']
+    const placeholders = fields.map((f)=> `${f} = ?`).join(', ')
+    const values = fields.map((f)=> p[f] ?? null)
+    await c.env.DB.prepare(`UPDATE title_profiles SET ${placeholders} WHERE title_id = ?`).bind(...values, id).run()
+  }
+
+  async function addCast(id:number, list: Array<{name:string, role:string}>){
+    for(const {name, role} of list){
+      await c.env.DB.prepare('INSERT OR IGNORE INTO cast (title_id, name, role) VALUES (?,?,?)').bind(id, name, role).run()
+    }
+  }
+  async function addCrew(id:number, list: Array<{name:string, department:string}>){
+    for(const {name, department} of list){
+      await c.env.DB.prepare('INSERT OR IGNORE INTO crew (title_id, name, department) VALUES (?,?,?)').bind(id, name, department).run()
+    }
+  }
+  async function addFestivals(id:number, list: Array<{festival_name:string, award?:string, year?:number}>){
+    for(const f of list){
+      await c.env.DB.prepare('INSERT INTO festivals (title_id, festival_name, award, year) VALUES (?,?,?,?)')
+        .bind(id, f.festival_name, f.award ?? null, f.year ?? null).run()
+    }
+  }
+
+  async function putImageToR2(key: string, url: string){
+    const resp = await fetch(url)
+    if(!resp.ok) throw new Error(`fetch ${url} ${resp.status}`)
+    const ct = resp.headers.get('content-type') || 'image/jpeg'
+    const buf = await resp.arrayBuffer()
+    await c.env.R2!.put(key, buf, { httpMetadata: { contentType: ct } })
+    return { size: buf.byteLength, contentType: ct }
+  }
+
+  async function upsertArtwork(id:number, kind:string, imageUrl:string){
+    const key = `titles/${id}/artwork/${Date.now()}-${Math.random().toString(36).slice(2)}-${kind}.jpg`
+    const meta = await putImageToR2(key, imageUrl)
+    const prev = await c.env.DB.prepare('SELECT id, r2_key FROM artworks WHERE title_id=? AND kind=?').bind(id, kind).all()
+    const row = (prev.results as any[])?.[0]
+    if(row?.r2_key) await moveToTrash(c.env, row.r2_key)
+    if(row){
+      await c.env.DB.prepare('UPDATE artworks SET r2_key=?, size_bytes=?, content_type=?, status="uploaded" WHERE id=?').bind(key, meta.size, meta.contentType, row.id).run()
+    } else {
+      await c.env.DB.prepare('INSERT INTO artworks (title_id, kind, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?,"uploaded")')
+        .bind(id, kind, key, meta.size, meta.contentType).run()
+    }
+  }
+
+  async function upsertCaption(id:number, language:string, kind:string){
+    const body = 'WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nSample caption for '+language+'\n'
+    const key = `titles/${id}/captions/${Date.now()}-${Math.random().toString(36).slice(2)}-${language}-${kind}.vtt`
+    await c.env.R2!.put(key, new TextEncoder().encode(body), { httpMetadata: { contentType: 'text/vtt' } })
+    const prev = await c.env.DB.prepare('SELECT id, r2_key FROM captions WHERE title_id=? AND language=? AND kind=?').bind(id, language, kind).all()
+    const row = (prev.results as any[])?.[0]
+    if(row?.r2_key) await moveToTrash(c.env, row.r2_key)
+    if(row){
+      await c.env.DB.prepare('UPDATE captions SET r2_key=?, size_bytes=?, content_type=?, status="uploaded" WHERE id=?').bind(key, body.length, 'text/vtt', row.id).run()
+    } else {
+      await c.env.DB.prepare('INSERT INTO captions (title_id, language, kind, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?, ?,"uploaded")')
+        .bind(id, language, kind, key, body.length, 'text/vtt').run()
+    }
+  }
+
+  async function upsertDocument(id:number, doc_type:string){
+    const pdf = new TextEncoder().encode('%PDF-1.4\n1 0 obj<<>>endobj\nxref\n0 1\n0000000000 65535 f \ntrailer<<>>\nstartxref\n0\n%%EOF')
+    const key = `titles/${id}/documents/${Date.now()}-${Math.random().toString(36).slice(2)}-${doc_type}.pdf`
+    await c.env.R2!.put(key, pdf, { httpMetadata: { contentType: 'application/pdf' } })
+    const prev = await c.env.DB.prepare('SELECT id, r2_key FROM documents WHERE title_id=? AND doc_type=?').bind(id, doc_type).all()
+    const row = (prev.results as any[])?.[0]
+    if(row?.r2_key) await moveToTrash(c.env, row.r2_key)
+    if(row){
+      await c.env.DB.prepare('UPDATE documents SET r2_key=?, size_bytes=?, content_type=?, status="uploaded" WHERE id=?').bind(key, pdf.byteLength, 'application/pdf', row.id).run()
+    } else {
+      await c.env.DB.prepare('INSERT INTO documents (title_id, doc_type, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?, "uploaded")')
+        .bind(id, doc_type, key, pdf.byteLength, 'application/pdf').run()
+    }
+  }
+
+  async function ensureAvails(id:number){
+    const rs = await c.env.DB.prepare('SELECT COUNT(*) as n FROM avails WHERE title_id=?').bind(id).all()
+    // @ts-ignore
+    const n = Number((rs.results?.[0]?.n)||0)
+    if(n>0) return
+    await c.env.DB.prepare('INSERT INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+      .bind(id,'avod','US,CA,GB,AU','2025-09-01',null,0).run()
+    await c.env.DB.prepare('INSERT INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+      .bind(id,'svod','worldwide','2025-11-01','2026-11-01',1).run()
+  }
+
+  // Prepare three titles
+  const titles = [
+    {
+      name:'The Last Lotus', status:'ready', poster:`https://picsum.photos/seed/lotus/400/600`, land:`https://picsum.photos/seed/lotuswide/800/450`, banner:`https://picsum.photos/seed/lotusb/1200/300`,
+      profile:{ sales_title:'The Last Lotus', synopsis:'A Vietnamese-American filmmaker returns to Saigon to finish his father\'s film and confront the past.', genres:'Drama, Mystery', keywords:'Vietnam, Saigon, family, identity, cinema', format:'Movie', spoken_language:'English, Vietnamese', dubbed_languages:'', caption_languages:'en, vi', origin_country:'VN', runtime_minutes:102, release_date:'2025-07-04', rating_system:'MPAA', rating:'PG-13', production_company:'Sutudu Pictures', website:'https://sutudu.com/lastlotus' },
+      cast:[{name:'An Nguyen', role:'Lead'},{name:'Mai Tran', role:'Supporting'}],
+      crew:[{name:'K. Le', department:'Director'},{name:'J. Pham', department:'Producer'},{name:'H. Vo', department:'Writer'}],
+      festivals:[{festival_name:'Busan', award:'Official Selection', year:2025}]
+    },
+    {
+      name:'Saigon Neon', status:'ready', poster:`https://picsum.photos/seed/neon/400/600`, land:`https://picsum.photos/seed/neonwide/800/450`, banner:`https://picsum.photos/seed/neonb/1200/300`,
+      profile:{ sales_title:'Saigon Neon', synopsis:'Neon-lit nights and underground cinema collide in District 1.', genres:'Thriller, Neo-noir', keywords:'Saigon, nightlife, neon, mystery', format:'Movie', spoken_language:'Vietnamese', dubbed_languages:'English', caption_languages:'en, vi', origin_country:'VN', runtime_minutes:98, release_date:'2025-05-15', rating_system:'MPAA', rating:'R', production_company:'Neon River', website:'https://example.com/saigonneon' },
+      cast:[{name:'Bao Le', role:'Lead'},{name:'Linh Vu', role:'Supporting'}],
+      crew:[{name:'T. Dao', department:'Director'},{name:'M. Huynh', department:'DP'}],
+      festivals:[{festival_name:'Sundance', award:'Midnight Section', year:2025}]
+    },
+    {
+      name:'The Quiet Harbor', status:'ready', poster:`https://picsum.photos/seed/harbor/400/600`, land:`https://picsum.photos/seed/harborwide/800/450`, banner:`https://picsum.photos/seed/harborb/1200/300`,
+      profile:{ sales_title:'The Quiet Harbor', synopsis:'A small coastal town keeps a secret that could change everything.', genres:'Drama', keywords:'harbor, secret, community', format:'Movie', spoken_language:'English', dubbed_languages:'', caption_languages:'en, es', origin_country:'US', runtime_minutes:104, release_date:'2025-03-20', rating_system:'MPAA', rating:'PG-13', production_company:'Harborlight', website:'https://example.com/quietharbor' },
+      cast:[{name:'E. Stone', role:'Lead'}],
+      crew:[{name:'R. Carter', department:'Director'},{name:'S. Bell', department:'Editor'}],
+      festivals:[{festival_name:'Toronto', award:'Discovery', year:2025}]
+    }
+  ]
+
+  const results: any[] = []
+  for(const t of titles){
+    const id = await ensureTitle(t.name, t.status)
+    await setProfile(id, t.profile)
+    await addCast(id, t.cast)
+    await addCrew(id, t.crew)
+    await addFestivals(id, t.festivals)
+
+    // Artworks
+    await upsertArtwork(id, 'poster', t.poster)
+    await upsertArtwork(id, 'landscape_16_9', t.land)
+    await upsertArtwork(id, 'banner', t.banner)
+
+    // Captions
+    await upsertCaption(id, 'en', 'subtitles')
+    const extraLang = t.profile.caption_languages?.split(',').map((s:string)=>s.trim()).filter((s:string)=>s && s!=='en')[0]
+    if(extraLang){ await upsertCaption(id, extraLang, 'subtitles') }
+
+    // Documents (a few critical ones)
+    for(const d of ['chain_of_title','eo_insurance','music_cue_sheet','w9_w8']){
+      await upsertDocument(id, d)
+    }
+
+    await ensureAvails(id)
+
+    results.push({ id, name: t.name })
+  }
+
+  return c.json({ ok: true, titles: results })
+})
+
 api.get('/updates', async (c) => {
   const url = new URL(c.req.url)
   const titleId = url.searchParams.get('title_id')
