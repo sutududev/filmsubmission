@@ -110,125 +110,113 @@ app.get('/', (c) => {
 
 app.get('/title/:id', (c) => {
   const id = c.req.param('id')
-  return c.html(`
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Title ${id}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="/static/styles.css" rel="stylesheet">
-  </head>
-  <body class="bg-gray-50">
-    <div class="max-w-6xl mx-auto p-6">
-      <a href="/" class="text-blue-600">← Back</a>
-      <h1 class="text-2xl font-bold mb-4">Title #${id}</h1>
-      <div class="mb-4 flex items-center justify-between">
-        <div class="flex-1 mr-3"><div class="usage"><div id="usageBar" style="width:0%"></div></div></div>
-        <button class="btn-primary" onclick="APP.wizardOpen(${id})">Open Wizard</button>
-      </div>
-      <div class="flex gap-4 border-b mb-4">
-        <a class="tab active" onclick="showTab('prof')">Profile</a>
-        <a class="tab" onclick="showTab('art')">Artwork</a>
-        <a class="tab" onclick="showTab('cap')">Captions</a>
-        <a class="tab" onclick="showTab('doc')">Documents</a>
-        <a class="tab" onclick="showTab('av')">Avails</a>
-      </div>
+  const inner = `
+    <a href="/" class="text-blue-600">← Back</a>
+    <h1 class="text-2xl font-bold mb-4">Title #${id}</h1>
+    <div class="mb-4 flex items-center justify-between">
+      <div class="flex-1 mr-3"><div class="usage"><div id="usageBar" style="width:0%"></div></div></div>
+      <button class="btn-primary" onclick="APP.wizardOpen(${id})">Open Wizard</button>
+    </div>
+    <div class="flex gap-4 border-b mb-4">
+      <a class="tab active" onclick="showTab('prof')">Profile</a>
+      <a class="tab" onclick="showTab('art')">Artwork</a>
+      <a class="tab" onclick="showTab('cap')">Captions</a>
+      <a class="tab" onclick="showTab('doc')">Documents</a>
+      <a class="tab" onclick="showTab('av')">Avails</a>
+    </div>
 
-      <div id="tab-prof">
-        <div class="bg-white border rounded p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input id="pf_sales_title" placeholder="Sales title" class="border p-2 rounded" />
-          <input id="pf_format" placeholder="Format (Movie/Series/etc)" class="border p-2 rounded" />
-          <input id="pf_spoken_language" placeholder="Spoken language" class="border p-2 rounded" />
-          <input id="pf_dubbed_languages" placeholder="Dubbed languages" class="border p-2 rounded" />
-          <input id="pf_caption_languages" placeholder="Caption languages" class="border p-2 rounded" />
-          <input id="pf_origin_country" placeholder="Origin country" class="border p-2 rounded" />
-          <input id="pf_runtime_minutes" placeholder="Runtime (minutes)" class="border p-2 rounded" />
-          <input id="pf_release_date" placeholder="Release date (YYYY-MM-DD)" class="border p-2 rounded" />
-          <input id="pf_rating_system" placeholder="Rating system" class="border p-2 rounded" />
-          <input id="pf_rating" placeholder="Rating" class="border p-2 rounded" />
-          <input id="pf_production_company" placeholder="Production company" class="border p-2 rounded" />
-          <input id="pf_website" placeholder="Website" class="border p-2 rounded" />
-          <input id="pf_genres" placeholder="Genres (comma separated)" class="border p-2 rounded md:col-span-2" />
-          <textarea id="pf_synopsis" placeholder="Synopsis" class="border p-2 rounded md:col-span-2"></textarea>
-          <input id="pf_keywords" placeholder="Keywords" class="border p-2 rounded md:col-span-2" />
-        </div>
-        <div class="mt-3">
-          <button class="btn-primary" onclick="APP.saveProfile(${id})">Save Profile</button>
-        </div>
+    <div id="tab-prof">
+      <div class="bg-white border rounded p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <input id="pf_sales_title" placeholder="Sales title" class="border p-2 rounded" />
+        <input id="pf_format" placeholder="Format (Movie/Series/etc)" class="border p-2 rounded" />
+        <input id="pf_spoken_language" placeholder="Spoken language" class="border p-2 rounded" />
+        <input id="pf_dubbed_languages" placeholder="Dubbed languages" class="border p-2 rounded" />
+        <input id="pf_caption_languages" placeholder="Caption languages" class="border p-2 rounded" />
+        <input id="pf_origin_country" placeholder="Origin country" class="border p-2 rounded" />
+        <input id="pf_runtime_minutes" placeholder="Runtime (minutes)" class="border p-2 rounded" />
+        <input id="pf_release_date" placeholder="Release date (YYYY-MM-DD)" class="border p-2 rounded" />
+        <input id="pf_rating_system" placeholder="Rating system" class="border p-2 rounded" />
+        <input id="pf_rating" placeholder="Rating" class="border p-2 rounded" />
+        <input id="pf_production_company" placeholder="Production company" class="border p-2 rounded" />
+        <input id="pf_website" placeholder="Website" class="border p-2 rounded" />
+        <input id="pf_genres" placeholder="Genres (comma separated)" class="border p-2 rounded md:col-span-2" />
+        <textarea id="pf_synopsis" placeholder="Synopsis" class="border p-2 rounded md:col-span-2"></textarea>
+        <input id="pf_keywords" placeholder="Keywords" class="border p-2 rounded md:col-span-2" />
       </div>
+      <div class="mt-3">
+        <button class="btn-primary" onclick="APP.saveProfile(${id})">Save Profile</button>
+      </div>
+    </div>
 
-      <div id="tab-art" style="display:none">
-        <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/artworks', {kind: document.getElementById('art_kind').value}, document.getElementById('art_file')).then(()=>{APP.loadArtworks(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
-          <select id="art_kind" class="border rounded p-2">
-            <option>poster</option>
-            <option>landscape_16_9</option>
-            <option>portrait_2_3</option>
-            <option>banner</option>
-          </select>
-          <input id="art_file" type="file" accept="image/*" class="border p-2" />
-          <button class="px-3 py-2 bg-blue-600 text-white rounded">Upload</button>
-        </form>
-        <div id="artworks" class="bg-white rounded border"></div>
-      </div>
+    <div id="tab-art" style="display:none">
+      <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/artworks', {kind: document.getElementById('art_kind').value}, document.getElementById('art_file')).then(()=>{APP.loadArtworks(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
+        <select id="art_kind" class="border rounded p-2">
+          <option>poster</option>
+          <option>landscape_16_9</option>
+          <option>portrait_2_3</option>
+          <option>banner</option>
+        </select>
+        <input id="art_file" type="file" accept="image/*" class="border p-2" />
+        <button class="px-3 py-2 bg-blue-600 text-white rounded">Upload</button>
+      </form>
+      <div id="artworks" class="bg-white rounded border"></div>
+    </div>
 
-      <div id="tab-cap" style="display:none">
-        <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/captions', {language: document.getElementById('cap_lang').value, kind: document.getElementById('cap_kind').value}, document.getElementById('cap_file')).then(()=>{APP.loadCaptions(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
-          <input id="cap_lang" placeholder="language (e.g., en)" class="border p-2" />
-          <select id="cap_kind" class="border rounded p-2">
-            <option>subtitles</option>
-            <option>captions</option>
-            <option>sdh</option>
-          </select>
-          <input id="cap_file" type="file" accept=".vtt,.srt" class="border p-2" />
-          <button class="px-3 py-2 bg-blue-600 text-white rounded">Upload</button>
-        </form>
-        <div id="captions" class="bg-white rounded border"></div>
-      </div>
+    <div id="tab-cap" style="display:none">
+      <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/captions', {language: document.getElementById('cap_lang').value, kind: document.getElementById('cap_kind').value}, document.getElementById('cap_file')).then(()=>{APP.loadCaptions(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
+        <input id="cap_lang" placeholder="language (e.g., en)" class="border p-2" />
+        <select id="cap_kind" class="border rounded p-2">
+          <option>subtitles</option>
+          <option>captions</option>
+          <option>sdh</option>
+        </select>
+        <input id="cap_file" type="file" accept=".vtt,.srt" class="border p-2" />
+        <button class="px-3 py-2 bg-blue-600 text-white rounded">Upload</button>
+      </form>
+      <div id="captions" class="bg-white rounded border"></div>
+    </div>
 
-      <div id="tab-doc" style="display:none">
-        <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/documents', {doc_type: document.getElementById('doc_type').value}, document.getElementById('doc_file')).then(()=>{APP.loadDocuments(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
-          <select id="doc_type" class="border rounded p-2">
-            <option>chain_of_title</option>
-            <option>copyright_reg</option>
-            <option>eo_insurance</option>
-            <option>music_cue_sheet</option>
-            <option>composer_agreement</option>
-            <option>talent_release</option>
-            <option>location_release</option>
-            <option>underlying_rights</option>
-            <option>w9_w8</option>
-            <option>trailer_prores</option>
-            <option>screener</option>
-            <option>qc_report</option>
-            <option>metadata_sheet</option>
-            <option>poster_psd</option>
-            <option>key_art_psd</option>
-            <option>delivery_schedule</option>
-            <option>other</option>
-          </select>
-          <input id="doc_file" type="file" accept=".pdf,.docx" class="border p-2" />
-          <button class="px-3 py-2 bg-blue-600 text-white rounded">Upload</button>
-        </form>
-        <div id="documents" class="bg-white rounded border"></div>
-      </div>
+    <div id="tab-doc" style="display:none">
+      <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/documents', {doc_type: document.getElementById('doc_type').value}, document.getElementById('doc_file')).then(()=>{APP.loadDocuments(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
+        <select id="doc_type" class="border rounded p-2">
+          <option>chain_of_title</option>
+          <option>copyright_reg</option>
+          <option>eo_insurance</option>
+          <option>music_cue_sheet</option>
+          <option>composer_agreement</option>
+          <option>talent_release</option>
+          <option>location_release</option>
+          <option>underlying_rights</option>
+          <option>w9_w8</option>
+          <option>trailer_prores</option>
+          <option>screener</option>
+          <option>qc_report</option>
+          <option>metadata_sheet</option>
+          <option>poster_psd</option>
+          <option>key_art_psd</option>
+          <option>delivery_schedule</option>
+          <option>other</option>
+        </select>
+        <input id="doc_file" type="file" accept=".pdf,.docx" class="border p-2" />
+        <button class="px-3 py-2 bg-blue-600 text-white rounded">Upload</button>
+      </form>
+      <div id="documents" class="bg-white rounded border"></div>
+    </div>
 
-      <div id="tab-av" style="display:none">
-        <form onsubmit="event.preventDefault(); APP.createAvail(${id})" class="mb-3 flex items-center gap-2 flex-wrap">
-          <select id="av_type" class="border rounded p-2">
-            <option value="avod">avod</option>
-            <option value="svod">svod</option>
-            <option value="tvod">tvod</option>
-          </select>
-          <input id="av_terr" placeholder="Territories (e.g., US,CA or worldwide)" class="border p-2 rounded" />
-          <input id="av_start" type="date" class="border p-2 rounded" />
-          <input id="av_end" type="date" class="border p-2 rounded" />
-          <label class="inline-flex items-center gap-2"><input id="av_excl" type="checkbox"/> Exclusive</label>
-          <button class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
-        </form>
-        <div id="avails" class="bg-white rounded border"></div>
-      </div>
+    <div id="tab-av" style="display:none">
+      <form onsubmit="event.preventDefault(); APP.createAvail(${id})" class="mb-3 flex items-center gap-2 flex-wrap">
+        <select id="av_type" class="border rounded p-2">
+          <option value="avod">avod</option>
+          <option value="svod">svod</option>
+          <option value="tvod">tvod</option>
+        </select>
+        <input id="av_terr" placeholder="Territories (e.g., US,CA or worldwide)" class="border p-2 rounded" />
+        <input id="av_start" type="date" class="border p-2 rounded" />
+        <input id="av_end" type="date" class="border p-2 rounded" />
+        <label class="inline-flex items-center gap-2"><input id="av_excl" type="checkbox"/> Exclusive</label>
+        <button class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+      </form>
+      <div id="avails" class="bg-white rounded border"></div>
     </div>
 
     <script src="/static/app.js"></script>
@@ -242,7 +230,6 @@ app.get('/title/:id', (c) => {
         const tabs=document.querySelectorAll('.tab');
         tabs.forEach((t)=>{ t.classList.toggle('active', t.getAttribute('onclick')?.includes("'"+key+"'")) })
       }
-      // Initial loads
       APP.loadUsage(${id});
       APP.loadProfile(${id});
       APP.loadArtworks(${id});
@@ -250,15 +237,14 @@ app.get('/title/:id', (c) => {
       APP.loadDocuments(${id});
       APP.loadAvails(${id});
     </script>
-  </body>
-  </html>
-  `)
+  `
+  return c.html(pageLayout(`Title ${id}`, inner))
 })
 
 function pageLayout(title: string, inner: string){
   return `<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/><script src='https://cdn.tailwindcss.com'></script><link href='/static/styles.css' rel='stylesheet'><title>${title}</title></head><body class='bg-gray-50'><div class='min-h-screen flex'>
     <aside class='w-60 bg-white border-r p-4 space-y-2'>
-      <div class='font-bold text-lg mb-3'><a href='/' class='hover:underline'>Sutudu</a></div>
+      <div class='logo mb-3'><img src='/static/logo.svg' alt='Sutudu' width='96' height='24'/></div>
       <nav class='flex flex-col text-sm'>
         <a href='/' class='py-1'>Dashboard</a>
         <a href='/' class='py-1'>Titles</a>
@@ -268,7 +254,7 @@ function pageLayout(title: string, inner: string){
         <a href='/channels' class='py-1'>Channels</a>
       </nav>
     </aside>
-    <main class='flex-1 p-6'>${inner}</main>
+    <main class='flex-1 p-6 max-w-6xl'>${inner}</main>
   </div></body></html>`
 }
 
