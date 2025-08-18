@@ -144,4 +144,36 @@ function renderWizard(id){ const el=document.getElementById('wizard'); if(!el) r
 function nextStep(){ const el=document.getElementById('wizard'); if(!el) return; let i=parseInt(el.getAttribute('data-step')||'0',10); i=Math.min(WIZ_STEPS.length-1, i+1); el.setAttribute('data-step', String(i)); const id=(new URL(location.href)).pathname.split('/').pop(); renderWizard(parseInt(id,10)); }
 function prevStep(){ const el=document.getElementById('wizard'); if(!el) return; let i=parseInt(el.getAttribute('data-step')||'0',10); i=Math.max(0, i-1); el.setAttribute('data-step', String(i)); const id=(new URL(location.href)).pathname.split('/').pop(); renderWizard(parseInt(id,10)); }
 
-window.APP={ loadTitles, loadTitlesFiltered, createTitle, loadUsage, loadArtworks, loadCaptions, loadDocuments, uploadMultipart, loadProfile, saveProfile, loadAvails, createAvail, wizardOpen, wizardClose }
+async function loadTasks(){
+  const wrap=document.getElementById('tasks'); if(!wrap) return; wrap.innerHTML='Loading...';
+  try{
+    const titles=await api('/api/titles?per_page=50');
+    if(!titles.length){ wrap.innerHTML='<div class="text-gray-600">No titles yet.</div>'; return }
+    const container=h('div',{class:'space-y-4'});
+    for(const t of titles){
+      const [arts, caps, docs, avs] = await Promise.all([
+        api(`/api/titles/${t.id}/artworks`),
+        api(`/api/titles/${t.id}/captions`),
+        api(`/api/titles/${t.id}/documents`),
+        api(`/api/titles/${t.id}/avails`)
+      ]);
+      const havePoster = arts.some(a=>a.kind==='poster' && a.status!=='missing');
+      const haveChain = docs.some(d=>d.doc_type==='chain_of_title' && d.status!=='missing');
+      const haveEN = caps.some(c=>c.language==='en' && c.kind==='subtitles' && c.status!=='missing');
+      const haveAvail = avs.length>0;
+      const tasks=[];
+      if(!havePoster) tasks.push({label:'Upload Poster (2:3 JPG/PNG/WebP)', href:`/title/${t.id}#art`});
+      if(!haveEN) tasks.push({label:'Add English Subtitles (.vtt/.srt)', href:`/title/${t.id}#cap`});
+      if(!haveChain) tasks.push({label:'Upload Chain-of-Title PDF', href:`/title/${t.id}#doc`});
+      if(!haveAvail) tasks.push({label:'Create an Avail', href:`/title/${t.id}#av`});
+      const card=h('div',{class:'border rounded bg-white p-3'},
+        h('div',{class:'font-semibold mb-2'}, `${t.name} (#${t.id})`),
+        tasks.length? h('ul',{class:'list-disc pl-5 space-y-1'}, ...tasks.map(it=> h('li',{}, h('a',{href:it.href, class:'text-blue-600'}, it.label))))
+                    : h('div',{class:'text-sm text-green-700'}, 'All set for basic submission.'));
+      container.appendChild(card)
+    }
+    wrap.innerHTML=''; wrap.appendChild(container);
+  }catch(e){ wrap.textContent='Failed to load tasks.' }
+}
+
+window.APP={ loadTitles, loadTitlesFiltered, createTitle, loadUsage, loadArtworks, loadCaptions, loadDocuments, uploadMultipart, loadProfile, saveProfile, loadAvails, createAvail, wizardOpen, wizardClose, loadTasks }

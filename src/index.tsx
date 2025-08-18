@@ -82,9 +82,11 @@ app.get('/', (c) => {
       APP.loadTitles();
       // Auto-seed example content if DB is empty
       (async ()=>{ try { const r=await fetch('/api/seed-if-empty', {method:'POST'}); if(r.ok){ APP.loadTitles(); } } catch(e){} })();
+      // Optionally seed two more sample titles with tiny assets (idempotent)
+      (async ()=>{ try { await fetch('/api/seed-sample', {method:'POST'}); APP.loadTitles(); } catch(e){} })();
     </script>
   `
-  return c.html(pageLayout('Sutudu Film Submission', inner, 'dashboard'))
+  return c.html(pageLayout('Sutudu Film Submission', inner, 'overview'))
 })
 
 app.get('/title/:id', (c) => {
@@ -209,6 +211,8 @@ app.get('/title/:id', (c) => {
         const tabs=document.querySelectorAll('.tab');
         tabs.forEach((t)=>{ t.classList.toggle('active', t.getAttribute('onclick')?.includes("'"+key+"'")) })
       }
+      // Activate initial tab from location.hash if provided
+      (function(){ const h=location.hash.replace('#',''); if(['prof','art','cap','doc','av'].includes(h)) showTab(h) })();
       APP.loadUsage(${id});
       APP.loadProfile(${id});
       APP.loadArtworks(${id});
@@ -220,14 +224,15 @@ app.get('/title/:id', (c) => {
   return c.html(pageLayout(`Title ${id}`, inner, 'titles'))
 })
 
-function pageLayout(title: string, inner: string, active: 'dashboard'|'titles'|'insights'|'statements'|'schedule'|'channels' = 'dashboard'){
+function pageLayout(title: string, inner: string, active: 'overview'|'titles'|'tasks'|'insights'|'statements'|'schedule'|'channels' = 'overview'){
   const cls = (key:string)=> `py-1 ${active===key? 'text-blue-600':''}`
   return `<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/><script src='https://cdn.tailwindcss.com'></script><link href='/static/styles.css' rel='stylesheet'><title>${title}</title></head><body class='bg-gray-50'><div class='min-h-screen flex'>
     <aside class='w-60 bg-white border-r p-4 space-y-2'>
       <div class='logo mb-3'><img src='/static/logo.svg' alt='Sutudu' width='96' height='24'/></div>
       <nav class='flex flex-col text-sm'>
-        <a href='/' class='${cls('dashboard')}'>Dashboard</a>
+        <a href='/' class='${cls("overview")}'>Overview</a>
         <a href='/' class='${cls('titles')}'>Titles</a>
+        <a href='/tasks' class='${cls("tasks")}'>Tasks</a>
         <a href='/insights' class='${cls('insights')}'>Insights</a>
         <a href='/statements' class='${cls('statements')}'>Statements</a>
         <a href='/schedule' class='${cls('schedule')}'>Schedule</a>
@@ -242,5 +247,12 @@ app.get('/insights', (c)=> c.html(pageLayout('Insights', `<h1 class='text-2xl fo
 app.get('/statements', (c)=> c.html(pageLayout('Statements', `<h1 class='text-2xl font-bold mb-4'>Statements</h1><p class='text-gray-600'>Coming soon: financial statements, periods, and downloadable reports.</p>`)))
 app.get('/schedule', (c)=> c.html(pageLayout('Schedule', `<h1 class='text-2xl font-bold mb-4'>Schedule</h1><p class='text-gray-600'>Coming soon: delivery timelines, QC windows, and release schedules.</p>`)))
 app.get('/channels', (c)=> c.html(pageLayout('Channels', `<h1 class='text-2xl font-bold mb-4'>Channels</h1><p class='text-gray-600'>Coming soon: partner onboarding, submission status, and publishing.</p>`)))
+
+app.get('/tasks', (c)=> c.html(pageLayout('Tasks', `
+  <h1 class='text-2xl font-bold mb-4'>Tasks</h1>
+  <div id='tasks' class='space-y-3'></div>
+  <script src="/static/app.js"></script>
+  <script>APP.loadTasks()</script>
+`, 'tasks')))
 
 export default app

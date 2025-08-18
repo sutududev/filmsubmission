@@ -455,6 +455,69 @@ api.delete('/avails/:availId', async (c) => {
 })
 
 // Updates feed
+// Seed two additional sample titles with tiny assets in R2 (idempotent)
+api.post('/seed-sample', async (c) => {
+  // If we already have 3+ titles, skip
+  const ct = await c.env.DB.prepare('SELECT COUNT(*) as n FROM titles').all();
+  // @ts-ignore
+  const n = Number((ct.results?.[0]?.n) || 0)
+  if (n >= 3) return c.json({ ok: true, skipped: true })
+
+  if (!c.env.R2) return c.json({ error: 'R2 not bound' }, 500)
+
+  async function ensureTitle(name: string, status = 'incomplete') {
+    const rs = await c.env.DB.prepare('SELECT id FROM titles WHERE name = ?').bind(name).all();
+    const existing = (rs.results as any[])?.[0]
+    if (existing) return Number(existing.id)
+    const r = await c.env.DB.prepare('INSERT INTO titles (name, status) VALUES (?,?)').bind(name, status).run();
+    const id = Number(r.meta.last_row_id)
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(id, 'created_title', JSON.stringify({ name })).run()
+    return id
+  }
+
+  // Tiny 1x1 PNG (transparent)
+  const png1x1 = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=='), c=>c.charCodeAt(0))
+  // Minimal VTT content
+  const vtt = new TextEncoder().encode('WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello world\n')
+  // Minimal PDF header/body
+  const pdf = new TextEncoder().encode('%PDF-1.4\n1 0 obj<<>>endobj\nxref\n0 1\n0000000000 65535 f \ntrailer<<>>\nstartxref\n0\n%%EOF')
+
+  // Seed Saigon Neon
+  const id1 = await ensureTitle('Saigon Neon', 'incomplete')
+  // Poster
+  const keyPoster1 = `titles/${id1}/artwork/sample-poster.png`
+  await c.env.R2.put(keyPoster1, png1x1, { httpMetadata: { contentType: 'image/png' } })
+  await c.env.DB.prepare('INSERT OR REPLACE INTO artworks (title_id, kind, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?,"uploaded")')
+    .bind(id1, 'poster', keyPoster1, png1x1.byteLength, 'image/png').run()
+  // Captions
+  const keyVtt1 = `titles/${id1}/captions/en-subtitles.vtt`
+  await c.env.R2.put(keyVtt1, vtt, { httpMetadata: { contentType: 'text/vtt' } })
+  await c.env.DB.prepare('INSERT OR REPLACE INTO captions (title_id, language, kind, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?, ?,"uploaded")')
+    .bind(id1, 'en', 'subtitles', keyVtt1, vtt.byteLength, 'text/vtt').run()
+  // Document
+  const keyPdf1 = `titles/${id1}/documents/chain-of-title.pdf`
+  await c.env.R2.put(keyPdf1, pdf, { httpMetadata: { contentType: 'application/pdf' } })
+  await c.env.DB.prepare('INSERT OR REPLACE INTO documents (title_id, doc_type, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?, "uploaded")')
+    .bind(id1, 'chain_of_title', keyPdf1, pdf.byteLength, 'application/pdf').run()
+
+  // Seed The Quiet Harbor
+  const id2 = await ensureTitle('The Quiet Harbor', 'ready')
+  const keyPoster2 = `titles/${id2}/artwork/sample-poster.png`
+  await c.env.R2.put(keyPoster2, png1x1, { httpMetadata: { contentType: 'image/png' } })
+  await c.env.DB.prepare('INSERT OR REPLACE INTO artworks (title_id, kind, r2_key, size_bytes, content_type, status) VALUES (?,?,?,?,?,"uploaded")')
+    .bind(id2, 'poster', keyPoster2, png1x1.byteLength, 'image/png').run()
+
+  await c.env.DB.prepare('INSERT OR IGNORE INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+    .bind(id2, 'avod', 'worldwide', '2025-09-01', null, 0).run()
+
+  await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)')
+    .bind(id1, 'seeded_assets', JSON.stringify({ poster: keyPoster1, vtt: keyVtt1, pdf: keyPdf1 })).run()
+  await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)')
+    .bind(id2, 'seeded_assets', JSON.stringify({ poster: keyPoster2 })).run()
+
+  return c.json({ ok: true, ids: [id1, id2] })
+})
+
 api.get('/updates', async (c) => {
   const url = new URL(c.req.url)
   const titleId = url.searchParams.get('title_id')
