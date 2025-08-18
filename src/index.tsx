@@ -71,12 +71,37 @@ app.get('/title/:id', (c) => {
         <div class="usage"><div id="usageBar" style="width:0%"></div></div>
       </div>
       <div class="flex gap-4 border-b mb-4">
-        <a class="tab active" onclick="showTab('art')">Artwork</a>
+        <a class="tab active" onclick="showTab('prof')">Profile</a>
+        <a class="tab" onclick="showTab('art')">Artwork</a>
         <a class="tab" onclick="showTab('cap')">Captions</a>
         <a class="tab" onclick="showTab('doc')">Documents</a>
+        <a class="tab" onclick="showTab('av')">Avails</a>
       </div>
 
-      <div id="tab-art">
+      <div id="tab-prof">
+        <div class="bg-white border rounded p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input id="pf_sales_title" placeholder="Sales title" class="border p-2 rounded" />
+          <input id="pf_format" placeholder="Format (Movie/Series/etc)" class="border p-2 rounded" />
+          <input id="pf_spoken_language" placeholder="Spoken language" class="border p-2 rounded" />
+          <input id="pf_dubbed_languages" placeholder="Dubbed languages" class="border p-2 rounded" />
+          <input id="pf_caption_languages" placeholder="Caption languages" class="border p-2 rounded" />
+          <input id="pf_origin_country" placeholder="Origin country" class="border p-2 rounded" />
+          <input id="pf_runtime_minutes" placeholder="Runtime (minutes)" class="border p-2 rounded" />
+          <input id="pf_release_date" placeholder="Release date (YYYY-MM-DD)" class="border p-2 rounded" />
+          <input id="pf_rating_system" placeholder="Rating system" class="border p-2 rounded" />
+          <input id="pf_rating" placeholder="Rating" class="border p-2 rounded" />
+          <input id="pf_production_company" placeholder="Production company" class="border p-2 rounded" />
+          <input id="pf_website" placeholder="Website" class="border p-2 rounded" />
+          <input id="pf_genres" placeholder="Genres (comma separated)" class="border p-2 rounded md:col-span-2" />
+          <textarea id="pf_synopsis" placeholder="Synopsis" class="border p-2 rounded md:col-span-2"></textarea>
+          <input id="pf_keywords" placeholder="Keywords" class="border p-2 rounded md:col-span-2" />
+        </div>
+        <div class="mt-3">
+          <button class="px-3 py-2 bg-blue-600 text-white rounded" onclick="APP.saveProfile(${id})">Save Profile</button>
+        </div>
+      </div>
+
+      <div id="tab-art" style="display:none">
         <form onsubmit="event.preventDefault(); APP.uploadMultipart('/api/titles/${id}/artworks', {kind: document.getElementById('art_kind').value}, document.getElementById('art_file')).then(()=>{APP.loadArtworks(${id}); APP.loadUsage(${id})})" class="mb-3 flex items-center gap-2">
           <select id="art_kind" class="border rounded p-2">
             <option>poster</option>
