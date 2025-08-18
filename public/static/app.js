@@ -1,20 +1,74 @@
 async function api(path, opts={}){ const r=await fetch(path, opts); if(!r.ok){ const t=await r.text(); throw new Error(t||('HTTP '+r.status)) } return r.json() }
 function h(el, attrs={}, ...children){ const e=document.createElement(el); for(const [k,v] of Object.entries(attrs||{})){ if(k==='class') e.className=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v); else e.setAttribute(k,v) } for(const c of children.flat()){ if(c==null) continue; if(typeof c==='string') e.appendChild(document.createTextNode(c)); else e.appendChild(c) } return e }
 
+// Inline SVG icon helpers
+function _svg(attrs){ const s=document.createElementNS('http://www.w3.org/2000/svg','svg'); for(const [k,v] of Object.entries(attrs||{})){ s.setAttribute(k,String(v)) } return s }
+function _path(d, extra={}){ const p=document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d', d); p.setAttribute('fill','none'); p.setAttribute('stroke','currentColor'); p.setAttribute('stroke-width','2'); p.setAttribute('stroke-linecap','round'); p.setAttribute('stroke-linejoin','round'); for(const [k,v] of Object.entries(extra)) p.setAttribute(k, String(v)); return p }
+function svgArrowRight(){ const s=_svg({width:16,height:16,viewBox:'0 0 24 24'}); s.appendChild(_path('M5 12h14')); s.appendChild(_path('M12 5l7 7-7 7')); return s }
+function svgPlus(){ const s=_svg({width:16,height:16,viewBox:'0 0 24 24'}); s.appendChild(_path('M12 5v14')); s.appendChild(_path('M5 12h14')); return s }
+function svgCamera(){ const s=_svg({width:24,height:24,viewBox:'0 0 24 24'}); s.appendChild(_path('M3 7h4.5l2-2H14l2 2H21v12H3z')); s.appendChild(_path('M12 10a4 4 0 1 0 0.001 8.001A4 4 0 0 0 12 10z', {fill:'none'})); return s }
+
 async function loadTitles(){ return loadTitlesFiltered() }
-async function loadTitlesFiltered(){ const q=document.getElementById('q')?.value||''; const s=document.getElementById('status')?.value||''; const list=await api(`/api/titles?q=${encodeURIComponent(q)}&status=${encodeURIComponent(s)}`); const wrap=document.getElementById('titles'); wrap.innerHTML=''; const ul=h('ul',{class:'divide-y border rounded bg-white'}); list.forEach(t=>{ const left=h('div',{class:'flex items-center gap-3'}, t.poster_key? h('img',{src:`/api/file/${t.poster_key}`, class:'w-12 h-12 object-cover bg-gray-100 rounded'}): h('div',{class:'w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400'}, '📷'), h('div',{}, h('div',{class:'font-semibold'}, t.name), h('div',{class:'text-xs text-gray-500'}, `#${t.id} · ${t.status}`))); const li=h('li',{class:'p-3 flex items-center justify-between'}, left, h('a',{href:`/title/${t.id}`, class:'text-blue-600 hover:underline'}, 'Open')); ul.appendChild(li) }); wrap.appendChild(ul); loadUpdates(); }
+async function loadTitlesFiltered(){
+  const q=document.getElementById('q')?.value||''; const s=document.getElementById('status')?.value||'';
+  const list=await api(`/api/titles?q=${encodeURIComponent(q)}&status=${encodeURIComponent(s)}`);
+  const wrap=document.getElementById('titles'); wrap.innerHTML='';
+  if(!list.length){
+    const empty=h('div',{class:'empty'},
+      h('div',{class:'title'},'No titles yet'),
+      h('div',{class:'desc'},'Create your first title to start uploading artwork, captions, and documents.'),
+      h('button',{class:'btn-primary', onclick:()=>APP.createTitle()}, svgPlus(), ' Create Title')
+    );
+    wrap.appendChild(empty); loadUpdates(); return;
+  }
+  const ul=h('ul',{class:'divide-y border rounded bg-white'});
+  list.forEach(t=>{
+    const thumb = t.poster_key
+      ? h('img',{src:`/api/file/${t.poster_key}`, class:'w-12 h-12 object-cover bg-gray-100 rounded'})
+      : h('div',{class:'w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400'}, svgCamera());
+    const left=h('div',{class:'flex items-center gap-3'}, thumb,
+      h('div',{}, h('div',{class:'font-semibold'}, t.name), h('div',{class:'text-xs text-gray-500'}, `#${t.id} · ${t.status}`))
+    );
+    const open=h('a',{href:`/title/${t.id}`, class:'btn-primary'}, 'Open', svgArrowRight());
+    const li=h('li',{class:'p-3 flex items-center justify-between'}, left, open);
+    ul.appendChild(li)
+  });
+  wrap.appendChild(ul); loadUpdates();
+}
 async function loadUpdates(){ const list=await api('/api/updates?per_page=5'); const box=document.getElementById('updates'); if(!list.length){ box.textContent='No results.'; return } box.innerHTML=''; list.forEach(u=>{ const li=h('div',{class:'border-b py-2 text-sm'}, `${new Date(u.created_at).toLocaleString()} · ${u.event_type}`); box.appendChild(li) }) }
 
 async function createTitle(){ const name=prompt('Title name?','New Title'); if(!name) return; await api('/api/titles',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name}) }); await loadTitles() }
 
 async function loadUsage(id){ const u=await api(`/api/titles/${id}/usage`); const bar=document.getElementById('usageBar'); const pct=Math.min(100, Math.round(u.used_bytes*100/u.quota_bytes)); bar.style.width=pct+'%'; bar.textContent=`${(u.used_bytes/1024/1024).toFixed(1)}MB / ${(u.quota_bytes/1024/1024).toFixed(0)}MB`; }
 
-async function loadArtworks(id){ const rows=await api(`/api/titles/${id}/artworks`); const wrap=document.getElementById('artworks'); wrap.innerHTML=''; const grid=h('div',{class:'grid grid-cols-2 md:grid-cols-4 gap-4 p-3'}); rows.forEach(r=>{ const statusChip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${r.status==='approved'?'bg-green-100 text-green-700':r.status==='rejected'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-700'}`}, r.status||'uploaded'); const actions=h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-green-700 mr-2', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) }); loadArtworks(id)}},'approve'), h('button',{class:'text-amber-700 mr-3', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'rejected'}) }); loadArtworks(id)}},'reject'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/artworks/${r.id}`,{method:'DELETE'}); loadArtworks(id); loadUsage(id) }},'delete')); const card=h('div',{class:'border rounded bg-white p-2 flex flex-col items-center'}, h('div',{class:'text-xs text-gray-600 self-start mb-1 flex items-center gap-2'}, r.kind, statusChip), h('img',{src:`/api/file/${r.r2_key}`, class:'w-40 h-60 object-cover bg-gray-100 border rounded', alt:r.kind}), h('div',{class:'mt-2 text-xs text-gray-500'}, `${(r.size_bytes||0)/1024|0} KB`), h('div',{class:'mt-2'}, actions)); grid.appendChild(card) }); wrap.appendChild(grid) }
+async function loadArtworks(id){
+  const rows=await api(`/api/titles/${id}/artworks`); const wrap=document.getElementById('artworks'); wrap.innerHTML='';
+  if(!rows.length){
+    const empty=h('div',{class:'empty'},
+      h('div',{class:'title'},'No artwork yet'),
+      h('div',{class:'desc'},'Poster, landscape 16:9, banner. JPG/PNG/WebP up to 10MB.'),
+      h('button',{class:'btn-primary', onclick:()=>APP.wizardOpen(id)}, svgPlus(), ' Upload via Wizard')
+    );
+    wrap.appendChild(empty); return;
+  }
+  const grid=h('div',{class:'grid grid-cols-2 md:grid-cols-4 gap-4 p-3'});
+  rows.forEach(r=>{ const statusChip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${r.status==='approved'?'bg-green-100 text-green-700':r.status==='rejected'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-700'}`}, r.status||'uploaded'); const actions=h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-green-700 mr-2', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) }); loadArtworks(id)}},'approve'), h('button',{class:'text-amber-700 mr-3', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'rejected'}) }); loadArtworks(id)}},'reject'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/artworks/${r.id}`,{method:'DELETE'}); loadArtworks(id); loadUsage(id) }},'delete')); const card=h('div',{class:'border rounded bg-white p-2 flex flex-col items-center'}, h('div',{class:'text-xs text-gray-600 self-start mb-1 flex items-center gap-2'}, r.kind, statusChip), h('img',{src:`/api/file/${r.r2_key}`, class:'w-40 h-60 object-cover bg-gray-100 border rounded', alt:r.kind}), h('div',{class:'mt-2 text-xs text-gray-500'}, `${(r.size_bytes||0)/1024|0} KB`), h('div',{class:'mt-2'}, actions)); grid.appendChild(card) }); wrap.appendChild(grid) }
 
-async function loadCaptions(id){ const rows=await api(`/api/titles/${id}/captions`); const wrap=document.getElementById('captions'); wrap.innerHTML=''; rows.forEach(r=>{ const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, h('div',{}, `${r.language}/${r.kind} · ${(r.size_bytes||0)/1024|0} KB`), h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/captions/${r.id}`,{method:'DELETE'}); loadCaptions(id); loadUsage(id) }},'delete'))); wrap.appendChild(row) }) }
+async function loadCaptions(id){
+  const rows=await api(`/api/titles/${id}/captions`); const wrap=document.getElementById('captions'); wrap.innerHTML='';
+  if(!rows.length){
+    const empty=h('div',{class:'empty'},
+      h('div',{class:'title'},'No captions yet'),
+      h('div',{class:'desc'},'Upload .vtt or .srt up to 2MB. Add multiple languages for reach.'),
+      h('button',{class:'btn-primary', onclick:()=>document.getElementById('cap_file')?.click()}, svgPlus(), ' Upload Caption')
+    );
+    wrap.appendChild(empty); return;
+  }
+  rows.forEach(r=>{ const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, h('div',{}, `${r.language}/${r.kind} · ${(r.size_bytes||0)/1024|0} KB`), h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/captions/${r.id}`,{method:'DELETE'}); loadCaptions(id); loadUsage(id) }},'delete'))); wrap.appendChild(row) })
+}
 
 const DOC_TYPES=["chain_of_title","copyright_reg","eo_insurance","music_cue_sheet","composer_agreement","talent_release","location_release","underlying_rights","w9_w8","trailer_prores","screener","qc_report","metadata_sheet","poster_psd","key_art_psd","delivery_schedule","other"];
-async function loadDocuments(id){ const rows=await api(`/api/titles/${id}/documents`); const wrap=document.getElementById('documents'); wrap.innerHTML=''; // Uploaded list
+async function loadDocuments(id){ const rows=await api(`/api/titles/${id}/documents`); const wrap=document.getElementById('documents'); wrap.innerHTML=''; if(!rows.length){ const empty=h('div',{class:'empty'}, h('div',{class:'title'},'No documents yet'), h('div',{class:'desc'},'Upload chain-of-title and delivery paperwork (PDF/DOCX up to 20MB).'), h('button',{class:'btn-primary', onclick:()=>document.getElementById('doc_file')?.click()}, svgPlus(), ' Upload Document')); wrap.appendChild(empty); return } // Uploaded list
 rows.forEach(r=>{ const statusChip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${r.status==='approved'?'bg-green-100 text-green-700':r.status==='rejected'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-700'}`}, r.status||'uploaded'); const actions=h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-green-700 mr-2', onclick: async ()=>{ await api(`/api/documents/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) }); loadDocuments(id)}},'approve'), h('button',{class:'text-amber-700 mr-3', onclick: async ()=>{ await api(`/api/documents/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'rejected'}) }); loadDocuments(id)}},'reject'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/documents/${r.id}`,{method:'DELETE'}); loadDocuments(id); loadUsage(id) }},'delete'));
   const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, h('div',{}, `${r.doc_type} · ${(r.size_bytes||0)/1024|0} KB `, statusChip), actions); wrap.appendChild(row) })
 // Checklist

@@ -19,14 +19,20 @@ body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,Apple C
 /* Sidebar */
 aside{background:var(--panel);border-right:1px solid var(--line)}
 aside .logo{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:var(--ink)}
-aside a{color:var(--muted)}
+aside a{color:var(--muted);display:flex;align-items:center;gap:.5rem}
 aside a:hover{color:var(--ink)}
 /* Buttons */
-.btn-primary{background:var(--brand);color:#fff;border-radius:8px;padding:.5rem .75rem}
+.btn-primary{background:var(--brand);color:#fff;border-radius:8px;padding:.5rem .75rem;display:inline-flex;align-items:center;gap:.5rem}
 .btn-primary:hover{background:var(--brand-600)}
+.icon-btn{border:none;background:transparent;color:var(--muted);padding:.375rem;border-radius:6px;display:inline-flex;align-items:center;gap:.25rem}
+.icon-btn:hover{background:var(--brand-100);color:var(--brand)}
 /* Wizard modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(11,16,32,.6);display:none;z-index:50}
 .modal{background:#fff;border-radius:16px;max-width:760px;margin:5vh auto;padding:1rem;box-shadow:0 20px 40px rgba(11,16,32,.25)}
 .modal.show{display:block}
 /* Info card */
 .info{background:var(--brand-100);border:1px solid #ddd6fe;color:var(--brand-600);border-radius:10px;padding:.75rem}
+/* Empty state */
+.empty{border:1px dashed var(--line);background:#fff;border-radius:12px;padding:2rem;text-align:center;color:var(--muted)}
+.empty .title{font-weight:600;color:var(--ink);margin-bottom:.25rem}
+.empty .desc{font-size:.9rem;margin-bottom:.75rem}
