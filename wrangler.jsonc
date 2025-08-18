@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "sutudu-film-submission-production",
-      "database_id": ""
+      "database_name": "filmsubmission-production",
+      "database_id": "4671962c-aa66-4424-b189-06cdefc038db"
     }
   ],
   "r2_buckets": [

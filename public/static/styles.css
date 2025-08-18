@@ -1,0 +1,5 @@
+body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji}
+.tab{padding:0.5rem 0.75rem;border-bottom:2px solid transparent;cursor:pointer}
+.tab.active{border-color:#2563eb;color:#2563eb}
+.usage{height:10px;background:#e5e7eb;border-radius:4px;overflow:hidden}
+.usage>div{height:100%;background:#2563eb;color:#fff;font-size:10px;text-align:center}
