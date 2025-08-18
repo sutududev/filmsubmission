@@ -28,4 +28,66 @@ async function loadProfile(id){ const p=await api(`/api/titles/${id}/profile`); 
 async function loadAvails(id){ const rows=await api(`/api/titles/${id}/avails`); const wrap=document.getElementById('avails'); wrap.innerHTML=''; rows.forEach(r=>{ const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, `${r.license_type} · ${r.territories} · ${r.start_date} - ${r.end_date||''} ${r.exclusive?'(exclusive)':''}`, h('div',{}, h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/avails/${r.id}`,{method:'DELETE'}); loadAvails(id)}},'delete'))); wrap.appendChild(row) }) }
 async function createAvail(id){ const license_type=document.getElementById('av_type').value; const territories=document.getElementById('av_terr').value; const start_date=document.getElementById('av_start').value; const end_date=document.getElementById('av_end').value||null; const exclusive=document.getElementById('av_excl').checked; await api(`/api/titles/${id}/avails`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ license_type, territories, start_date, end_date, exclusive }) }); document.getElementById('av_terr').value=''; loadAvails(id)}
 
-window.APP={ loadTitles, loadTitlesFiltered, createTitle, loadUsage, loadArtworks, loadCaptions, loadDocuments, uploadMultipart, loadProfile, saveProfile, loadAvails, createAvail }
+// Wizard modal UI
+function wizardOpen(id){ const m=document.getElementById('wizard'); if(!m){ buildWizardShell(); } renderWizard(parseInt(id,10)); document.getElementById('wizard-backdrop').classList.add('modal-backdrop','show'); }
+function wizardClose(){ const b=document.getElementById('wizard-backdrop'); if(b) b.className='modal-backdrop'; }
+function buildWizardShell(){ const b=document.createElement('div'); b.id='wizard-backdrop'; b.className='modal-backdrop'; const panel=document.createElement('div'); panel.className='modal'; panel.id='wizard'; b.appendChild(panel); document.body.appendChild(b) }
+const WIZ_STEPS=[
+  { key:'profile', title:'Profile', tip:'Basic metadata used by distributors.', example:'Sales title, synopsis, genres, languages, runtime, release date.' },
+  { key:'artwork', title:'Artwork', tip:'Poster and key art. Keep it clean and legible.', example:'Poster (2:3), Landscape 16:9, Banner. JPG/PNG/WebP up to 10MB.' },
+  { key:'captions', title:'Captions', tip:'Accessibility and localization files.', example:'English .vtt subtitles; additional languages welcome.' },
+  { key:'documents', title:'Documents', tip:'Chain-of-title and delivery paperwork.', example:'COC/Chain-of-Title, E&O, Music cue sheet, Talent releases, W-9/W-8.' },
+  { key:'avails', title:'Avails', tip:'Where and how you can license.', example:'AVOD worldwide, exclusive = no; or specific regions with start/end dates.' }
+]
+function renderWizard(id){ const el=document.getElementById('wizard'); if(!el) return; let stepIdx=parseInt(el.getAttribute('data-step')||'0',10); if(isNaN(stepIdx)) stepIdx=0; const step=WIZ_STEPS[stepIdx]; const dots=WIZ_STEPS.map((s,i)=>`<div style="height:4px;border-radius:2px;background:${i<=stepIdx?'#2563eb':'#e5e7eb'};flex:1;margin-right:4px"></div>`).join(''); const info=`<div class="info"><div class="font-semibold">${step.title} <span title="${step.tip} ${step.example}" style="cursor:help;color:#2563eb">(i)</span></div><div class="text-sm">${step.tip} <span class="text-gray-600">Example: ${step.example}</span></div></div>`;
+  let body='';
+  if(step.key==='profile') body=`<div class='grid grid-cols-1 md:grid-cols-2 gap-2'>
+    <input id='pf_sales_title' class='border p-2 rounded' placeholder='Sales title'>
+    <input id='pf_format' class='border p-2 rounded' placeholder='Format (Movie/Series/etc)'>
+    <input id='pf_spoken_language' class='border p-2 rounded' placeholder='Spoken language'>
+    <input id='pf_runtime_minutes' class='border p-2 rounded' placeholder='Runtime (minutes)'>
+    <input id='pf_release_date' class='border p-2 rounded' placeholder='Release date (YYYY-MM-DD)'>
+    <input id='pf_genres' class='border p-2 rounded md:col-span-2' placeholder='Genres (comma separated)'>
+    <textarea id='pf_synopsis' class='border p-2 rounded md:col-span-2' placeholder='Synopsis'></textarea>
+  </div><div class='text-right mt-2'><button class='px-3 py-2 bg-blue-600 text-white rounded' onclick='APP.saveProfile(${id})'>Save & Continue</button></div>`
+  if(step.key==='artwork') body=`<form onsubmit='event.preventDefault(); APP.uploadMultipart("/api/titles/${id}/artworks", {kind: document.getElementById("w_art_kind").value}, document.getElementById("w_art_file")).then(()=>{ APP.loadArtworks(${id}); nextStep() })' class='flex items-center gap-2'>
+      <select id='w_art_kind' class='border rounded p-2'><option>poster</option><option>landscape_16_9</option><option>portrait_2_3</option><option>banner</option></select>
+      <input id='w_art_file' type='file' accept='image/*' class='border p-2'/>
+      <button class='px-3 py-2 bg-blue-600 text-white rounded'>Upload & Continue</button>
+    </form>`
+  if(step.key==='captions') body=`<form onsubmit='event.preventDefault(); APP.uploadMultipart("/api/titles/${id}/captions", {language: document.getElementById("w_cap_lang").value, kind: document.getElementById("w_cap_kind").value}, document.getElementById("w_cap_file")).then(()=>{ APP.loadCaptions(${id}); nextStep() })' class='flex items-center gap-2'>
+      <input id='w_cap_lang' placeholder='language (e.g., en)' class='border p-2'/>
+      <select id='w_cap_kind' class='border rounded p-2'><option>subtitles</option><option>captions</option><option>sdh</option></select>
+      <input id='w_cap_file' type='file' accept='.vtt,.srt' class='border p-2'/>
+      <button class='px-3 py-2 bg-blue-600 text-white rounded'>Upload & Continue</button>
+    </form>`
+  if(step.key==='documents') body=`<form onsubmit='event.preventDefault(); APP.uploadMultipart("/api/titles/${id}/documents", {doc_type: document.getElementById("w_doc_type").value}, document.getElementById("w_doc_file")).then(()=>{ APP.loadDocuments(${id}); nextStep() })' class='flex items-center gap-2 flex-wrap'>
+      <select id='w_doc_type' class='border rounded p-2'>${DOC_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+      <input id='w_doc_file' type='file' accept='.pdf,.docx' class='border p-2'/>
+      <button class='px-3 py-2 bg-blue-600 text-white rounded'>Upload & Continue</button>
+    </form>`
+  if(step.key==='avails') body=`<form onsubmit='event.preventDefault(); APP.createAvail(${id}); nextStep()' class='flex items-center gap-2 flex-wrap'>
+      <select id='av_type' class='border rounded p-2'><option value='avod'>avod</option><option value='svod'>svod</option><option value='tvod'>tvod</option></select>
+      <input id='av_terr' placeholder='Territories (e.g., US,CA or worldwide)' class='border p-2 rounded'/>
+      <input id='av_start' type='date' class='border p-2 rounded'/>
+      <input id='av_end' type='date' class='border p-2 rounded'/>
+      <label class='inline-flex items-center gap-2'><input id='av_excl' type='checkbox'/> Exclusive</label>
+      <button class='px-3 py-2 bg-blue-600 text-white rounded'>Add & Finish</button>
+    </form>`
+  el.setAttribute('data-step', String(stepIdx));
+  el.innerHTML = `<div class='p-4'>
+    <div class='text-sm text-gray-500 mb-2 flex'>${dots}</div>
+    <div class='text-xl font-bold mb-2'>${stepIdx+1}. ${step.title}</div>
+    ${info}
+    <div class='mt-3'>${body}</div>
+    <div class='flex justify-between mt-4'>
+      <button class='text-gray-600' onclick='prevStep()' ${stepIdx===0?'disabled':''}>Back</button>
+      <button class='text-gray-600' onclick='wizardClose()'>Close</button>
+      <button class='text-blue-600' onclick='nextStep()' ${stepIdx===WIZ_STEPS.length-1?'disabled':''}>Next</button>
+    </div>
+  </div>`
+}
+function nextStep(){ const el=document.getElementById('wizard'); if(!el) return; let i=parseInt(el.getAttribute('data-step')||'0',10); i=Math.min(WIZ_STEPS.length-1, i+1); el.setAttribute('data-step', String(i)); const id=(new URL(location.href)).pathname.split('/').pop(); renderWizard(parseInt(id,10)); }
+function prevStep(){ const el=document.getElementById('wizard'); if(!el) return; let i=parseInt(el.getAttribute('data-step')||'0',10); i=Math.max(0, i-1); el.setAttribute('data-step', String(i)); const id=(new URL(location.href)).pathname.split('/').pop(); renderWizard(parseInt(id,10)); }
+
+window.APP={ loadTitles, loadTitlesFiltered, createTitle, loadUsage, loadArtworks, loadCaptions, loadDocuments, uploadMultipart, loadProfile, saveProfile, loadAvails, createAvail, wizardOpen, wizardClose }

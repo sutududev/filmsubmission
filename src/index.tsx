@@ -124,8 +124,9 @@ app.get('/title/:id', (c) => {
     <div class="max-w-6xl mx-auto p-6">
       <a href="/" class="text-blue-600">← Back</a>
       <h1 class="text-2xl font-bold mb-4">Title #${id}</h1>
-      <div class="mb-4">
-        <div class="usage"><div id="usageBar" style="width:0%"></div></div>
+      <div class="mb-4 flex items-center justify-between">
+        <div class="flex-1 mr-3"><div class="usage"><div id="usageBar" style="width:0%"></div></div></div>
+        <button class="px-3 py-2 bg-blue-600 text-white rounded" onclick="APP.wizardOpen(${id})">Open Wizard</button>
       </div>
       <div class="flex gap-4 border-b mb-4">
         <a class="tab active" onclick="showTab('prof')">Profile</a>

@@ -3,3 +3,9 @@ body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,Apple C
 .tab.active{border-color:#2563eb;color:#2563eb}
 .usage{height:10px;background:#e5e7eb;border-radius:4px;overflow:hidden}
 .usage>div{height:100%;background:#2563eb;color:#fff;font-size:10px;text-align:center}
+/* Wizard modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.6);display:none;z-index:50}
+.modal{background:#fff;border-radius:12px;max-width:760px;margin:5vh auto;padding:1rem;box-shadow:0 10px 25px rgba(0,0,0,.15)}
+.modal.show{display:block}
+/* Info card */
+.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:8px;padding:.75rem}
