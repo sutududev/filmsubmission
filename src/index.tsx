@@ -54,58 +54,37 @@ app.get('/login', (c) => {
 app.route('/api', api)
 
 app.get('/', (c) => {
-  return c.html(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Sutudu Film Submission</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-    <link href="/static/styles.css" rel="stylesheet"></head>
-    <body class="bg-gray-50">
-      <div class="min-h-screen flex">
-        <aside class="w-60 bg-white border-r p-4 space-y-2">
-          <div class="logo mb-3"><img src="/static/logo.svg" alt="Sutudu" width="96" height="24"/></div
-          <nav class="flex flex-col text-sm">
-            <a href="/" class="py-1 text-blue-600">Dashboard</a>
-            <a href="/" class="py-1">Titles</a>
-            <a href="/insights" class="py-1">Insights</a>
-            <a href="/statements" class="py-1">Statements</a>
-            <a href="/schedule" class="py-1">Schedule</a>
-            <a href="/channels" class="py-1">Channels</a>
-          </nav>
-        </aside>
-        <main class="flex-1 p-6">
-          <h1 class="text-2xl font-bold mb-4">My Titles</h1>
-          <div class="flex items-center gap-3 mb-4">
-            <button onclick="APP.createTitle()" class="btn-primary">Create Title</button>
-            <a href="#" onclick="APP.loadTitles()" class="text-blue-600">Refresh</a>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-2">
-              <div class="flex items-center gap-2 mb-2">
-                <input id="q" class="border rounded p-2 w-full" placeholder="Filter by title name..." onkeyup="APP.loadTitlesFiltered()" />
-                <select id="status" class="border rounded p-2" onchange="APP.loadTitlesFiltered()">
-                  <option value="">All</option>
-                  <option value="incomplete">Incomplete</option>
-                  <option value="ready">Ready</option>
-                </select>
-              </div>
-              <div id="titles"></div>
-            </div>
-            <div>
-              <h2 class="font-semibold mb-2">Distribution Updates</h2>
-              <div id="updates" class="bg-white border rounded p-3 text-sm text-gray-600">No results.</div>
-            </div>
-          </div>
-        </main>
+  const inner = `
+    <h1 class=\"text-2xl font-bold mb-4\">My Titles</h1>
+    <div class=\"flex items-center gap-3 mb-4\">
+      <button onclick=\"APP.createTitle()\" class=\"btn-primary\">Create Title</button>
+      <a href=\"#\" onclick=\"APP.loadTitles()\" class=\"text-blue-600\">Refresh</a>
+    </div>
+    <div class=\"grid grid-cols-1 md:grid-cols-3 gap-6\">
+      <div class=\"md:col-span-2\">
+        <div class=\"flex items-center gap-2 mb-2\">
+          <input id=\"q\" class=\"border rounded p-2 w-full\" placeholder=\"Filter by title name...\" onkeyup=\"APP.loadTitlesFiltered()\" />
+          <select id=\"status\" class=\"border rounded p-2\" onchange=\"APP.loadTitlesFiltered()\">
+            <option value=\"\">All</option>
+            <option value=\"incomplete\">Incomplete</option>
+            <option value=\"ready\">Ready</option>
+          </select>
+        </div>
+        <div id=\"titles\"></div>
       </div>
-      <script src="/static/app.js"></script>
-      <script>APP.loadTitles()</script>
-    </body>
-    </html>
-  `)
+      <div>
+        <h2 class=\"font-semibold mb-2\">Distribution Updates</h2>
+        <div id=\"updates\" class=\"bg-white border rounded p-3 text-sm text-gray-600\">No results.</div>
+      </div>
+    </div>
+    <script src=\"/static/app.js\"></script>
+    <script>
+      APP.loadTitles();
+      // Auto-seed example content if DB is empty
+      (async ()=>{ try { const r=await fetch('/api/seed-if-empty', {method:'POST'}); if(r.ok){ APP.loadTitles(); } } catch(e){} })();
+    </script>
+  `
+  return c.html(pageLayout('Sutudu Film Submission', inner, 'dashboard'))
 })
 
 app.get('/title/:id', (c) => {
@@ -238,20 +217,21 @@ app.get('/title/:id', (c) => {
       APP.loadAvails(${id});
     </script>
   `
-  return c.html(pageLayout(`Title ${id}`, inner))
+  return c.html(pageLayout(`Title ${id}`, inner, 'titles'))
 })
 
-function pageLayout(title: string, inner: string){
+function pageLayout(title: string, inner: string, active: 'dashboard'|'titles'|'insights'|'statements'|'schedule'|'channels' = 'dashboard'){
+  const cls = (key:string)=> `py-1 ${active===key? 'text-blue-600':''}`
   return `<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/><script src='https://cdn.tailwindcss.com'></script><link href='/static/styles.css' rel='stylesheet'><title>${title}</title></head><body class='bg-gray-50'><div class='min-h-screen flex'>
     <aside class='w-60 bg-white border-r p-4 space-y-2'>
       <div class='logo mb-3'><img src='/static/logo.svg' alt='Sutudu' width='96' height='24'/></div>
       <nav class='flex flex-col text-sm'>
-        <a href='/' class='py-1'>Dashboard</a>
-        <a href='/' class='py-1'>Titles</a>
-        <a href='/insights' class='py-1'>Insights</a>
-        <a href='/statements' class='py-1'>Statements</a>
-        <a href='/schedule' class='py-1'>Schedule</a>
-        <a href='/channels' class='py-1'>Channels</a>
+        <a href='/' class='${cls('dashboard')}'>Dashboard</a>
+        <a href='/' class='${cls('titles')}'>Titles</a>
+        <a href='/insights' class='${cls('insights')}'>Insights</a>
+        <a href='/statements' class='${cls('statements')}'>Statements</a>
+        <a href='/schedule' class='${cls('schedule')}'>Schedule</a>
+        <a href='/channels' class='${cls('channels')}'>Channels</a>
       </nav>
     </aside>
     <main class='flex-1 p-6 max-w-6xl'>${inner}</main>
