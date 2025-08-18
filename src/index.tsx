@@ -26,7 +26,23 @@ app.get('/', (c) => {
           <button onclick="APP.createTitle()" class="px-3 py-2 bg-blue-600 text-white rounded">Create Title</button>
           <a href="#" onclick="APP.loadTitles()" class="text-blue-600">Refresh</a>
         </div>
-        <div id="titles"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-2">
+            <div class="flex items-center gap-2 mb-2">
+              <input id="q" class="border rounded p-2 w-full" placeholder="Filter by title name..." onkeyup="APP.loadTitlesFiltered()" />
+              <select id="status" class="border rounded p-2" onchange="APP.loadTitlesFiltered()">
+                <option value="">All</option>
+                <option value="incomplete">Incomplete</option>
+                <option value="ready">Ready</option>
+              </select>
+            </div>
+            <div id="titles"></div>
+          </div>
+          <div>
+            <h2 class="font-semibold mb-2">Distribution Updates</h2>
+            <div id="updates" class="bg-white border rounded p-3 text-sm text-gray-600">No results.</div>
+          </div>
+        </div>
       </div>
       <script src="/static/app.js"></script>
       <script>APP.loadTitles()</script>
