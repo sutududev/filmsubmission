@@ -66,7 +66,7 @@ app.get('/', (c) => {
     <body class="bg-gray-50">
       <div class="min-h-screen flex">
         <aside class="w-60 bg-white border-r p-4 space-y-2">
-          <div class="font-bold text-lg mb-3">Sutudu</div>
+          <div class="logo mb-3"><img src="/static/logo.svg" alt="Sutudu" width="96" height="24"/></div
           <nav class="flex flex-col text-sm">
             <a href="/" class="py-1 text-blue-600">Dashboard</a>
             <a href="/" class="py-1">Titles</a>
@@ -79,7 +79,7 @@ app.get('/', (c) => {
         <main class="flex-1 p-6">
           <h1 class="text-2xl font-bold mb-4">My Titles</h1>
           <div class="flex items-center gap-3 mb-4">
-            <button onclick="APP.createTitle()" class="px-3 py-2 bg-blue-600 text-white rounded">Create Title</button>
+            <button onclick="APP.createTitle()" class="btn-primary">Create Title</button>
             <a href="#" onclick="APP.loadTitles()" class="text-blue-600">Refresh</a>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -126,7 +126,7 @@ app.get('/title/:id', (c) => {
       <h1 class="text-2xl font-bold mb-4">Title #${id}</h1>
       <div class="mb-4 flex items-center justify-between">
         <div class="flex-1 mr-3"><div class="usage"><div id="usageBar" style="width:0%"></div></div></div>
-        <button class="px-3 py-2 bg-blue-600 text-white rounded" onclick="APP.wizardOpen(${id})">Open Wizard</button>
+        <button class="btn-primary" onclick="APP.wizardOpen(${id})">Open Wizard</button>
       </div>
       <div class="flex gap-4 border-b mb-4">
         <a class="tab active" onclick="showTab('prof')">Profile</a>
@@ -155,7 +155,7 @@ app.get('/title/:id', (c) => {
           <input id="pf_keywords" placeholder="Keywords" class="border p-2 rounded md:col-span-2" />
         </div>
         <div class="mt-3">
-          <button class="px-3 py-2 bg-blue-600 text-white rounded" onclick="APP.saveProfile(${id})">Save Profile</button>
+          <button class="btn-primary" onclick="APP.saveProfile(${id})">Save Profile</button>
         </div>
       </div>
 

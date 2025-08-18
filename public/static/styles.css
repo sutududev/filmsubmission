@@ -1,11 +1,32 @@
-body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji}
-.tab{padding:0.5rem 0.75rem;border-bottom:2px solid transparent;cursor:pointer}
-.tab.active{border-color:#2563eb;color:#2563eb}
+/* Brand palette */
+:root{
+  --brand:#7C3AED; /* primary */
+  --brand-600:#6D28D9;
+  --brand-100:#EDE9FE;
+  --accent:#06B6D4; /* cyan accent */
+  --ink:#0B1020; /* dark text */
+  --muted:#6B7280; /* gray-500 */
+  --panel:#FFFFFF;
+  --line:#E5E7EB;
+  --bg:#F8FAFC;
+}
+
+body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;background:var(--bg);color:var(--ink)}
+.tab{padding:0.5rem 0.75rem;border-bottom:2px solid transparent;cursor:pointer;color:var(--muted)}
+.tab.active{border-color:var(--brand);color:var(--brand)}
 .usage{height:10px;background:#e5e7eb;border-radius:4px;overflow:hidden}
-.usage>div{height:100%;background:#2563eb;color:#fff;font-size:10px;text-align:center}
+.usage>div{height:100%;background:linear-gradient(90deg,var(--brand),var(--accent));color:#fff;font-size:10px;text-align:center}
+/* Sidebar */
+aside{background:var(--panel);border-right:1px solid var(--line)}
+aside .logo{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:var(--ink)}
+aside a{color:var(--muted)}
+aside a:hover{color:var(--ink)}
+/* Buttons */
+.btn-primary{background:var(--brand);color:#fff;border-radius:8px;padding:.5rem .75rem}
+.btn-primary:hover{background:var(--brand-600)}
 /* Wizard modal */
-.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.6);display:none;z-index:50}
-.modal{background:#fff;border-radius:12px;max-width:760px;margin:5vh auto;padding:1rem;box-shadow:0 10px 25px rgba(0,0,0,.15)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(11,16,32,.6);display:none;z-index:50}
+.modal{background:#fff;border-radius:16px;max-width:760px;margin:5vh auto;padding:1rem;box-shadow:0 20px 40px rgba(11,16,32,.25)}
 .modal.show{display:block}
 /* Info card */
-.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:8px;padding:.75rem}
+.info{background:var(--brand-100);border:1px solid #ddd6fe;color:var(--brand-600);border-radius:10px;padding:.75rem}
