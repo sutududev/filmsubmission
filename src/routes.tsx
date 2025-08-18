@@ -37,6 +37,50 @@ function contentTypeOf(filename: string): string | undefined {
 // Health
 api.get('/health', (c) => c.json({ ok: true }))
 
+// Seed example content if empty (dev helper)
+api.post('/seed-if-empty', async (c) => {
+  const rs = await c.env.DB.prepare('SELECT COUNT(*) as n FROM titles').all()
+  // @ts-ignore
+  const n = Number((rs.results?.[0]?.n) || 0)
+  if (n > 0) return c.json({ ok: true, skipped: true })
+
+  const titleName = 'The Last Lotus'
+  const res = await c.env.DB.prepare('INSERT INTO titles (name, status) VALUES (?,?)').bind(titleName, 'incomplete').run()
+  const id = Number(res.meta.last_row_id)
+
+  await c.env.DB.prepare(
+    `INSERT OR REPLACE INTO title_profiles (title_id, sales_title, synopsis, genres, keywords, format, spoken_language, origin_country, runtime_minutes, release_date, rating_system, rating, production_company, website)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(
+    id,
+    'The Last Lotus',
+    'A Vietnamese-American filmmaker returns to Saigon to finish a film his father started, uncovering secrets that threaten his crew and his heart.',
+    'Drama, Mystery',
+    'Vietnam, Saigon, family, identity, cinema',
+    'Movie',
+    'English, Vietnamese',
+    'VN',
+    102,
+    '2025-07-04',
+    'MPAA',
+    'PG-13',
+    'Sutudu Pictures',
+    'https://sutudu.com/lastlotus'
+  ).run()
+
+  await c.env.DB.prepare('INSERT INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+    .bind(id, 'avod', 'US,CA,GB,AU', '2025-08-01', null, 0).run()
+
+  await c.env.DB.prepare('INSERT OR IGNORE INTO artworks (title_id, kind, status) VALUES (?,?,?)').bind(id, 'poster', 'missing').run()
+  await c.env.DB.prepare('INSERT OR IGNORE INTO documents (title_id, doc_type, status) VALUES (?,?,?)').bind(id, 'chain_of_title', 'missing').run()
+  await c.env.DB.prepare('INSERT OR IGNORE INTO captions (title_id, language, kind, status) VALUES (?,?,?,?)').bind(id, 'en', 'subtitles', 'missing').run()
+
+  await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)')
+    .bind(id, 'created_title', JSON.stringify({ name: titleName })).run()
+
+  return c.json({ ok: true, id })
+})
+
 // File streaming (secure)
 api.get('/file/*', async (c) => {
   const key = c.req.path.replace(/^\/api\/file\//, '')
