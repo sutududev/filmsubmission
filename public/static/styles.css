@@ -19,10 +19,10 @@ body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,Apple C
 /* Sidebar */
 aside{background:var(--panel);border-right:1px solid var(--line)}
 aside .logo{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:var(--ink)}
-aside a{color:var(--muted);display:flex;align-items:center;gap:.5rem}
-aside a:hover{color:var(--ink)}
+aside a{color:var(--muted);display:flex;align-items:center;gap:.5rem;padding:.375rem .5rem;border-radius:8px}
+aside a:hover{color:var(--ink);background:var(--brand-100)}
 /* Buttons */
-.btn-primary{background:var(--brand);color:#fff;border-radius:8px;padding:.5rem .75rem;display:inline-flex;align-items:center;gap:.5rem}
+.btn-primary{background:var(--brand);color:#fff;border-radius:10px;padding:.6rem .9rem;display:inline-flex;align-items:center;gap:.5rem;box-shadow:0 6px 14px rgba(124,58,237,.25)}
 .btn-primary:hover{background:var(--brand-600)}
 .icon-btn{border:none;background:transparent;color:var(--muted);padding:.375rem;border-radius:6px;display:inline-flex;align-items:center;gap:.25rem}
 .icon-btn:hover{background:var(--brand-100);color:var(--brand)}
@@ -33,6 +33,6 @@ aside a:hover{color:var(--ink)}
 /* Info card */
 .info{background:var(--brand-100);border:1px solid #ddd6fe;color:var(--brand-600);border-radius:10px;padding:.75rem}
 /* Empty state */
-.empty{border:1px dashed var(--line);background:#fff;border-radius:12px;padding:2rem;text-align:center;color:var(--muted)}
+.empty{border:1px dashed var(--line);background:#fff;border-radius:16px;padding:2rem;text-align:center;color:var(--muted);box-shadow:0 8px 20px rgba(11,16,32,.06)}
 .empty .title{font-weight:600;color:var(--ink);margin-bottom:.25rem}
 .empty .desc{font-size:.9rem;margin-bottom:.75rem}

@@ -9,6 +9,41 @@ function svgPlus(){ const s=_svg({width:16,height:16,viewBox:'0 0 24 24'}); s.ap
 function svgCamera(){ const s=_svg({width:24,height:24,viewBox:'0 0 24 24'}); s.appendChild(_path('M3 7h4.5l2-2H14l2 2H21v12H3z')); s.appendChild(_path('M12 10a4 4 0 1 0 0.001 8.001A4 4 0 0 0 12 10z', {fill:'none'})); return s }
 
 async function loadTitles(){ return loadTitlesFiltered() }
+
+// Build requirements checklist items on requirements page if present
+(function(){
+  const container = document.getElementById('req-checklist');
+  if(!container) return;
+  const items = [
+    'Use preferred mezzanine codecs (ProRes 422/422 HQ, DNxHR/HD).',
+    'Acceptable containers: .mpg, .mpeg, .mov, .mp4, .ts, .mkv, .ogg',
+    'Resolution: ≥ 640px width with even dimensions; use original resolution; avoid upscaling.',
+    'Remove timecode tracks; begin and end with 1–2 seconds of black.',
+    'No interlacing, letterboxing, watermarks, or burned-in subtitles (except partial translations).',
+    'Recommended frame rates: native project rate (typically 23.976/24/25/29.97).',
+    'Audio: 48 kHz 16-bit PCM minimum; AAC/MP3 ≥128 kbps; stereo required; optional 5.1.',
+    'No clipping, phasing, or distortion; meet recommended loudness.',
+    'Provide aspect ratios: 2:3, 3:4, 16:9, 4:3, 2:1, 16:6, and 16:9 textless.',
+    'Ensure title readability; match title exactly; consistent imagery and fonts.',
+    'Avoid collages, borders, plain solid backgrounds, or promotional text/logos.',
+    'No nudity/excessive violence imagery; respect safe area guidelines.',
+    'English SDH captions required (SRT).',
+    'Max 43 chars/line; max 2 lines; proper punctuation; legible timing.',
+    'Caption durations and spacing within common QC ranges.',
+    'Runtime: minimum 2 minutes; AVOD recommended total runtime >20 minutes.',
+    'Series: submit all episodes for a season; at least 2 episodes per season.',
+    'Prohibited: pornography, hate speech, unlawful/deceptive content, harm to people/animals.',
+    'Restricted: promotional or home videos; no 3D/VR content.',
+    'Trailer length ≤6 minutes (recommended ~2.5 minutes).',
+    'Avoid sensitive content in trailers (nudity/sex/language/drugs/violence).',
+    'Maintain professional image, color, sound, and editorial quality.'
+  ];
+  for(const label of items){
+    const id = 'req_'+btoa(label).replace(/[^a-z0-9]/gi,'');
+    const row = h('div',{class:'p-2 border rounded bg-white flex items-center gap-2'}, h('input',{type:'checkbox', id}), h('label',{for:id, class:'text-sm'}, label));
+    container.appendChild(row)
+  }
+})();
 async function loadTitlesFiltered(){
   const q=document.getElementById('q')?.value||''; const s=document.getElementById('status')?.value||'';
   const list=await api(`/api/titles?q=${encodeURIComponent(q)}&status=${encodeURIComponent(s)}`);
@@ -21,16 +56,18 @@ async function loadTitlesFiltered(){
     );
     wrap.appendChild(empty); loadUpdates(); return;
   }
-  const ul=h('ul',{class:'divide-y border rounded bg-white'});
+  const ul=h('div',{class:'grid grid-cols-1 gap-3'});
   list.forEach(t=>{
     const thumb = t.poster_key
-      ? h('img',{src:`/api/file/${t.poster_key}`, class:'w-12 h-12 object-cover bg-gray-100 rounded'})
-      : h('div',{class:'w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400'}, svgCamera());
+      ? h('img',{src:`/api/file/${t.poster_key}`, class:'w-16 h-16 object-cover bg-gray-100 rounded-md'})
+      : h('div',{class:'w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center text-gray-400'}, svgCamera());
+    const badgeColor = t.status==='ready' ? 'bg-green-100 text-green-700' : t.status==='incomplete' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700';
+    const status=h('span',{class:`px-2 py-0.5 rounded text-xs ${badgeColor}`}, t.status);
     const left=h('div',{class:'flex items-center gap-3'}, thumb,
-      h('div',{}, h('div',{class:'font-semibold'}, t.name), h('div',{class:'text-xs text-gray-500'}, `#${t.id} · ${t.status}`))
+      h('div',{}, h('div',{class:'font-semibold text-lg'}, t.name), h('div',{class:'text-xs text-gray-500 flex items-center gap-2'}, `#${t.id}`, status))
     );
     const open=h('a',{href:`/title/${t.id}`, class:'btn-primary'}, 'Open', svgArrowRight());
-    const li=h('li',{class:'p-3 flex items-center justify-between'}, left, open);
+    const li=h('div',{class:'p-4 flex items-center justify-between bg-white border rounded-xl shadow-sm'}, left, open);
     ul.appendChild(li)
   });
   wrap.appendChild(ul); loadUpdates();
