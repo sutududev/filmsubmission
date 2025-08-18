@@ -7,6 +7,50 @@ const app = new Hono<{ Bindings: Bindings }>()
 
 app.use('/static/*', serveStatic({ root: './public' }))
 
+// Simple access-code auth (optional). Set ACCESS_CODE secret to enable.
+app.use('*', async (c, next) => {
+  const required = c.env.ACCESS_CODE
+  if (!required) return next()
+  const url = new URL(c.req.url)
+  const path = url.pathname
+  if (path.startsWith('/static/') || path === '/login' || path === '/api/health') return next()
+  const hdr = c.req.header('x-access-code')
+  if (hdr && hdr === required) return next()
+  const cookie = c.req.header('Cookie') || ''
+  const m = /(?:^|;\s*)ac=([^;]+)/.exec(cookie)
+  const ac = m?.[1]
+  if (ac === required) return next()
+  if (path.startsWith('/api/')) return c.json({ error: 'unauthorized' }, 401)
+  return c.redirect('/login')
+})
+
+app.post('/login', async (c) => {
+  const required = c.env.ACCESS_CODE
+  if (!required) return c.redirect('/')
+  const ct = c.req.header('content-type') || ''
+  let code = ''
+  if (ct.includes('application/json')) {
+    try { const body = await c.req.json<any>(); code = body.code || '' } catch {}
+  } else {
+    const form = await c.req.parseBody()
+    // @ts-ignore
+    code = (form?.code as string) || ''
+  }
+  if (code !== required) return c.html('<p style="font-family:ui-sans-serif">Invalid code. <a href="/login">Try again</a></p>', 401)
+  const cookie = `ac=${required}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure`
+  return new Response(null, { status: 302, headers: { 'Set-Cookie': cookie, 'Location': '/' } })
+})
+
+app.get('/login', (c) => {
+  return c.html(`<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><script src="https://cdn.tailwindcss.com"></script><title>Sign in</title></head><body class="bg-gray-50">
+  <div class="min-h-screen flex items-center justify-center p-6"><form method="POST" action="/login" class="bg-white border rounded p-6 w-full max-w-sm space-y-3">
+    <h1 class="text-xl font-semibold">Enter Access Code</h1>
+    <input name="code" type="password" placeholder="Access code" class="border rounded p-2 w-full"/>
+    <button class="w-full px-3 py-2 bg-blue-600 text-white rounded">Continue</button>
+  </form></div>
+</body></html>`)
+})
+
 app.route('/api', api)
 
 app.get('/', (c) => {
@@ -20,29 +64,42 @@ app.get('/', (c) => {
       <script src="https://cdn.tailwindcss.com"></script>
     <link href="/static/styles.css" rel="stylesheet"></head>
     <body class="bg-gray-50">
-      <div class="max-w-6xl mx-auto p-6">
-        <h1 class="text-2xl font-bold mb-4">Sutudu Film Submission</h1>
-        <div class="flex items-center gap-3 mb-4">
-          <button onclick="APP.createTitle()" class="px-3 py-2 bg-blue-600 text-white rounded">Create Title</button>
-          <a href="#" onclick="APP.loadTitles()" class="text-blue-600">Refresh</a>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="md:col-span-2">
-            <div class="flex items-center gap-2 mb-2">
-              <input id="q" class="border rounded p-2 w-full" placeholder="Filter by title name..." onkeyup="APP.loadTitlesFiltered()" />
-              <select id="status" class="border rounded p-2" onchange="APP.loadTitlesFiltered()">
-                <option value="">All</option>
-                <option value="incomplete">Incomplete</option>
-                <option value="ready">Ready</option>
-              </select>
+      <div class="min-h-screen flex">
+        <aside class="w-60 bg-white border-r p-4 space-y-2">
+          <div class="font-bold text-lg mb-3">Sutudu</div>
+          <nav class="flex flex-col text-sm">
+            <a href="/" class="py-1 text-blue-600">Dashboard</a>
+            <a href="/" class="py-1">Titles</a>
+            <a href="/insights" class="py-1">Insights</a>
+            <a href="/statements" class="py-1">Statements</a>
+            <a href="/schedule" class="py-1">Schedule</a>
+            <a href="/channels" class="py-1">Channels</a>
+          </nav>
+        </aside>
+        <main class="flex-1 p-6">
+          <h1 class="text-2xl font-bold mb-4">My Titles</h1>
+          <div class="flex items-center gap-3 mb-4">
+            <button onclick="APP.createTitle()" class="px-3 py-2 bg-blue-600 text-white rounded">Create Title</button>
+            <a href="#" onclick="APP.loadTitles()" class="text-blue-600">Refresh</a>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-2">
+              <div class="flex items-center gap-2 mb-2">
+                <input id="q" class="border rounded p-2 w-full" placeholder="Filter by title name..." onkeyup="APP.loadTitlesFiltered()" />
+                <select id="status" class="border rounded p-2" onchange="APP.loadTitlesFiltered()">
+                  <option value="">All</option>
+                  <option value="incomplete">Incomplete</option>
+                  <option value="ready">Ready</option>
+                </select>
+              </div>
+              <div id="titles"></div>
             </div>
-            <div id="titles"></div>
+            <div>
+              <h2 class="font-semibold mb-2">Distribution Updates</h2>
+              <div id="updates" class="bg-white border rounded p-3 text-sm text-gray-600">No results.</div>
+            </div>
           </div>
-          <div>
-            <h2 class="font-semibold mb-2">Distribution Updates</h2>
-            <div id="updates" class="bg-white border rounded p-3 text-sm text-gray-600">No results.</div>
-          </div>
-        </div>
+        </main>
       </div>
       <script src="/static/app.js"></script>
       <script>APP.loadTitles()</script>
@@ -196,5 +253,27 @@ app.get('/title/:id', (c) => {
   </html>
   `)
 })
+
+function pageLayout(title: string, inner: string){
+  return `<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/><script src='https://cdn.tailwindcss.com'></script><link href='/static/styles.css' rel='stylesheet'><title>${title}</title></head><body class='bg-gray-50'><div class='min-h-screen flex'>
+    <aside class='w-60 bg-white border-r p-4 space-y-2'>
+      <div class='font-bold text-lg mb-3'><a href='/' class='hover:underline'>Sutudu</a></div>
+      <nav class='flex flex-col text-sm'>
+        <a href='/' class='py-1'>Dashboard</a>
+        <a href='/' class='py-1'>Titles</a>
+        <a href='/insights' class='py-1'>Insights</a>
+        <a href='/statements' class='py-1'>Statements</a>
+        <a href='/schedule' class='py-1'>Schedule</a>
+        <a href='/channels' class='py-1'>Channels</a>
+      </nav>
+    </aside>
+    <main class='flex-1 p-6'>${inner}</main>
+  </div></body></html>`
+}
+
+app.get('/insights', (c)=> c.html(pageLayout('Insights', `<h1 class='text-2xl font-bold mb-4'>Insights</h1><p class='text-gray-600'>Coming soon: performance graphs, channel breakdowns, regions, and engagement.</p>`)))
+app.get('/statements', (c)=> c.html(pageLayout('Statements', `<h1 class='text-2xl font-bold mb-4'>Statements</h1><p class='text-gray-600'>Coming soon: financial statements, periods, and downloadable reports.</p>`)))
+app.get('/schedule', (c)=> c.html(pageLayout('Schedule', `<h1 class='text-2xl font-bold mb-4'>Schedule</h1><p class='text-gray-600'>Coming soon: delivery timelines, QC windows, and release schedules.</p>`)))
+app.get('/channels', (c)=> c.html(pageLayout('Channels', `<h1 class='text-2xl font-bold mb-4'>Channels</h1><p class='text-gray-600'>Coming soon: partner onboarding, submission status, and publishing.</p>`)))
 
 export default app
