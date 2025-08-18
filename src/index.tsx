@@ -155,17 +155,42 @@ app.get('/title/:id', (c) => {
         </form>
         <div id="documents" class="bg-white rounded border"></div>
       </div>
+
+      <div id="tab-av" style="display:none">
+        <form onsubmit="event.preventDefault(); APP.createAvail(${id})" class="mb-3 flex items-center gap-2 flex-wrap">
+          <select id="av_type" class="border rounded p-2">
+            <option value="avod">avod</option>
+            <option value="svod">svod</option>
+            <option value="tvod">tvod</option>
+          </select>
+          <input id="av_terr" placeholder="Territories (e.g., US,CA or worldwide)" class="border p-2 rounded" />
+          <input id="av_start" type="date" class="border p-2 rounded" />
+          <input id="av_end" type="date" class="border p-2 rounded" />
+          <label class="inline-flex items-center gap-2"><input id="av_excl" type="checkbox"/> Exclusive</label>
+          <button class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+        </form>
+        <div id="avails" class="bg-white rounded border"></div>
+      </div>
     </div>
 
     <script src="/static/app.js"></script>
     <script>
       function showTab(key){
-        for(const id of ['art','cap','doc']){
-          document.getElementById('tab-'+id).style.display = (id===key)?'block':'none'
+        const keys=['prof','art','cap','doc','av']
+        for(const kid of keys){
+          const el=document.getElementById('tab-'+kid)
+          if(el) el.style.display = (kid===key)?'block':'none'
         }
-        const tabs=document.querySelectorAll('.tab'); tabs.forEach((t,i)=>{ t.classList.toggle('active', ['art','cap','doc'][i]===key) })
+        const tabs=document.querySelectorAll('.tab');
+        tabs.forEach((t)=>{ t.classList.toggle('active', t.getAttribute('onclick')?.includes("'"+key+"'")) })
       }
-      APP.loadUsage(${id}); APP.loadArtworks(${id}); APP.loadCaptions(${id}); APP.loadDocuments(${id});
+      // Initial loads
+      APP.loadUsage(${id});
+      APP.loadProfile(${id});
+      APP.loadArtworks(${id});
+      APP.loadCaptions(${id});
+      APP.loadDocuments(${id});
+      APP.loadAvails(${id});
     </script>
   </body>
   </html>
