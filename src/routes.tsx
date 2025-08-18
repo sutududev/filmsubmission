@@ -413,6 +413,95 @@ api.post('/documents/:docId/status', async (c) => {
   return c.json({ ok: true })
 })
 
+// People: Cast
+api.get('/titles/:id/cast', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id)) return fail(c, 400, 'invalid title id')
+  const rs = await c.env.DB.prepare('SELECT id, name, role FROM cast WHERE title_id=? ORDER BY id DESC').bind(id).all()
+  return c.json(rs.results)
+})
+api.post('/titles/:id/cast', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id)) return fail(c, 400, 'invalid title id')
+  const { name, role } = await c.req.json<any>()
+  if (!name) return fail(c, 400, 'name required')
+  const res = await c.env.DB.prepare('INSERT INTO cast (title_id, name, role) VALUES (?,?,?)').bind(id, name, role ?? null).run()
+  return c.json({ id: res.meta.last_row_id })
+})
+api.put('/cast/:castId', async (c) => {
+  const castId = Number(c.req.param('castId'))
+  if (!Number.isFinite(castId)) return fail(c, 400, 'invalid id')
+  const { name, role } = await c.req.json<any>()
+  await c.env.DB.prepare('UPDATE cast SET name=?, role=? WHERE id=?').bind(name ?? null, role ?? null, castId).run()
+  return c.json({ ok: true })
+})
+api.delete('/cast/:castId', async (c) => {
+  const castId = Number(c.req.param('castId'))
+  if (!Number.isFinite(castId)) return fail(c, 400, 'invalid id')
+  await c.env.DB.prepare('DELETE FROM cast WHERE id=?').bind(castId).run()
+  return c.json({ ok: true })
+})
+
+// People: Crew
+api.get('/titles/:id/crew', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id)) return fail(c, 400, 'invalid title id')
+  const rs = await c.env.DB.prepare('SELECT id, name, department FROM crew WHERE title_id=? ORDER BY id DESC').bind(id).all()
+  return c.json(rs.results)
+})
+api.post('/titles/:id/crew', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id)) return fail(c, 400, 'invalid title id')
+  const { name, department } = await c.req.json<any>()
+  if (!name) return fail(c, 400, 'name required')
+  const res = await c.env.DB.prepare('INSERT INTO crew (title_id, name, department) VALUES (?,?,?)').bind(id, name, department ?? null).run()
+  return c.json({ id: res.meta.last_row_id })
+})
+api.put('/crew/:crewId', async (c) => {
+  const crewId = Number(c.req.param('crewId'))
+  if (!Number.isFinite(crewId)) return fail(c, 400, 'invalid id')
+  const { name, department } = await c.req.json<any>()
+  await c.env.DB.prepare('UPDATE crew SET name=?, department=? WHERE id=?').bind(name ?? null, department ?? null, crewId).run()
+  return c.json({ ok: true })
+})
+api.delete('/crew/:crewId', async (c) => {
+  const crewId = Number(c.req.param('crewId'))
+  if (!Number.isFinite(crewId)) return fail(c, 400, 'invalid id')
+  await c.env.DB.prepare('DELETE FROM crew WHERE id=?').bind(crewId).run()
+  return c.json({ ok: true })
+})
+
+// Festivals
+api.get('/titles/:id/festivals', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id)) return fail(c, 400, 'invalid title id')
+  const rs = await c.env.DB.prepare('SELECT id, festival_name, award, year FROM festivals WHERE title_id=? ORDER BY id DESC').bind(id).all()
+  return c.json(rs.results)
+})
+api.post('/titles/:id/festivals', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id)) return fail(c, 400, 'invalid title id')
+  const { festival_name, award, year } = await c.req.json<any>()
+  if (!festival_name) return fail(c, 400, 'festival_name required')
+  const res = await c.env.DB.prepare('INSERT INTO festivals (title_id, festival_name, award, year) VALUES (?,?,?,?)')
+    .bind(id, festival_name, award ?? null, year ?? null).run()
+  return c.json({ id: res.meta.last_row_id })
+})
+api.put('/festivals/:festId', async (c) => {
+  const festId = Number(c.req.param('festId'))
+  if (!Number.isFinite(festId)) return fail(c, 400, 'invalid id')
+  const { festival_name, award, year } = await c.req.json<any>()
+  await c.env.DB.prepare('UPDATE festivals SET festival_name=?, award=?, year=? WHERE id=?')
+    .bind(festival_name ?? null, award ?? null, year ?? null, festId).run()
+  return c.json({ ok: true })
+})
+api.delete('/festivals/:festId', async (c) => {
+  const festId = Number(c.req.param('festId'))
+  if (!Number.isFinite(festId)) return fail(c, 400, 'invalid id')
+  await c.env.DB.prepare('DELETE FROM festivals WHERE id=?').bind(festId).run()
+  return c.json({ ok: true })
+})
+
 // Avails
 api.get('/titles/:id/avails', async (c) => {
   const id = Number(c.req.param('id'))

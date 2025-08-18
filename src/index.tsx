@@ -103,6 +103,7 @@ app.get('/title/:id', (c) => {
       <a class="tab" onclick="showTab('art')">Artwork</a>
       <a class="tab" onclick="showTab('cap')">Captions</a>
       <a class="tab" onclick="showTab('doc')">Documents</a>
+      <a class="tab" onclick="showTab('people')">People</a>
       <a class="tab" onclick="showTab('av')">Avails</a>
     </div>
 
@@ -184,6 +185,39 @@ app.get('/title/:id', (c) => {
       <div id="documents" class="bg-white rounded border"></div>
     </div>
 
+    <div id="tab-people" style="display:none">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white border rounded p-3">
+          <h3 class="font-semibold mb-2">Cast</h3>
+          <form onsubmit="event.preventDefault(); APP.addCast(${id})" class="flex items-center gap-2 mb-2">
+            <input id="cast_name" placeholder="Name" class="border p-2 rounded"/>
+            <input id="cast_role" placeholder="Role" class="border p-2 rounded"/>
+            <button class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+          </form>
+          <div id="cast" class="text-sm"></div>
+        </div>
+        <div class="bg-white border rounded p-3">
+          <h3 class="font-semibold mb-2">Crew</h3>
+          <form onsubmit="event.preventDefault(); APP.addCrew(${id})" class="flex items-center gap-2 mb-2">
+            <input id="crew_name" placeholder="Name" class="border p-2 rounded"/>
+            <input id="crew_dept" placeholder="Department" class="border p-2 rounded"/>
+            <button class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+          </form>
+          <div id="crew" class="text-sm"></div>
+        </div>
+      </div>
+      <div class="bg-white border rounded p-3 mt-4">
+        <h3 class="font-semibold mb-2">Festivals</h3>
+        <form onsubmit="event.preventDefault(); APP.addFestival(${id})" class="flex items-center gap-2 mb-2 flex-wrap">
+          <input id="fest_name" placeholder="Festival Name" class="border p-2 rounded"/>
+          <input id="fest_award" placeholder="Award (optional)" class="border p-2 rounded"/>
+          <input id="fest_year" type="number" placeholder="Year" class="border p-2 rounded w-28"/>
+          <button class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+        </form>
+        <div id="festivals" class="text-sm"></div>
+      </div>
+    </div>
+
     <div id="tab-av" style="display:none">
       <form onsubmit="event.preventDefault(); APP.createAvail(${id})" class="mb-3 flex items-center gap-2 flex-wrap">
         <select id="av_type" class="border rounded p-2">
@@ -218,6 +252,9 @@ app.get('/title/:id', (c) => {
       APP.loadArtworks(${id});
       APP.loadCaptions(${id});
       APP.loadDocuments(${id});
+      APP.loadCast(${id});
+      APP.loadCrew(${id});
+      APP.loadFestivals(${id});
       APP.loadAvails(${id});
     </script>
   `
