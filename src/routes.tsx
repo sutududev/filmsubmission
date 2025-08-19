@@ -53,25 +53,56 @@ app.get('/api/file/*', async (c) => {
   })
 })
 
-// List titles with optional filters and poster subquery
+// List titles with optional filters and computed readiness
 app.get('/api/titles', async (c) => {
   const { q = '', status = '', per_page = '50' } = c.req.query()
   const limit = Math.min(100, Math.max(1, parseInt(String(per_page), 10) || 50))
   const params: any[] = []
   let where = 'WHERE 1=1'
   if (q) { where += ' AND t.name LIKE ?'; params.push(`%${q}%`) }
-  if (status) { where += ' AND t.status = ?'; params.push(status) }
+  // status filter applies to computed status
   const sql = `
-    SELECT t.*, (
-      SELECT a.r2_key FROM artworks a WHERE a.title_id = t.id AND a.kind = 'poster'
-    ) AS poster_key
+    SELECT
+      t.*,
+      (
+        SELECT a.r2_key FROM artworks a
+        WHERE a.title_id = t.id AND a.kind = 'poster'
+      ) AS poster_key,
+      (
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM artworks a WHERE a.title_id = t.id AND a.kind = 'poster' AND a.status != 'missing' AND a.r2_key IS NOT NULL
+        ) THEN 1 ELSE 0 END) +
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM captions c2 WHERE c2.title_id = t.id AND c2.language = 'en' AND c2.kind = 'subtitles' AND c2.status != 'missing' AND c2.r2_key IS NOT NULL
+        ) THEN 1 ELSE 0 END) +
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM documents d WHERE d.title_id = t.id AND d.doc_type = 'chain_of_title' AND d.status != 'missing' AND d.r2_key IS NOT NULL
+        ) THEN 1 ELSE 0 END) +
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM avails v WHERE v.title_id = t.id
+        ) THEN 1 ELSE 0 END)
+      ) AS ready_score,
+      CASE WHEN (
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM artworks a WHERE a.title_id = t.id AND a.kind = 'poster' AND a.status != 'missing' AND a.r2_key IS NOT NULL
+        ) THEN 1 ELSE 0 END) +
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM captions c2 WHERE c2.title_id = t.id AND c2.language = 'en' AND c2.kind = 'subtitles' AND c2.status != 'missing' AND c2.r2_key IS NOT NULL
+        ) THEN 1 ELSE 0 END) +
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM documents d WHERE d.title_id = t.id AND d.doc_type = 'chain_of_title' AND d.status != 'missing' AND d.r2_key IS NOT NULL
+        ) THEN 1 ELSE 0 END) +
+        (SELECT CASE WHEN EXISTS(
+          SELECT 1 FROM avails v WHERE v.title_id = t.id
+        ) THEN 1 ELSE 0 END)
+      ) = 4 THEN 'ready' ELSE 'incomplete' END AS status
     FROM titles t
     ${where}
-    ORDER BY t.id DESC
-    LIMIT ?
   `
-  params.push(limit)
-  const rows = await c.env.DB.prepare(sql).bind(...params).all()
+  // Apply status filter on computed status using outer SELECT
+  const wrapped = `SELECT * FROM ( ${sql} ) WHERE (? = '' OR status = ?) ORDER BY id DESC LIMIT ?`
+  params.push(status, status, limit)
+  const rows = await c.env.DB.prepare(wrapped).bind(...params).all()
   return c.json(rows.results)
 })
 
@@ -394,6 +425,34 @@ app.post('/api/seed-sample', async (c) => {
   await upsertPoster(harborId, 'https://picsum.photos/400/600?2')
 
   return c.json({ ok: true, ids: [saigonId, harborId] })
+})
+
+// Licenses
+app.get('/api/titles/:id/licenses', async (c) => {
+  const id = Number(c.req.param('id'))
+  const rows = await c.env.DB.prepare('SELECT * FROM licenses WHERE title_id = ? ORDER BY id DESC').bind(id).all()
+  return c.json(rows.results)
+})
+app.post('/api/titles/:id/licenses', async (c) => {
+  const id = Number(c.req.param('id'))
+  const body = await c.req.json()
+  const { channel = null, rights_granted = null, revenue_terms = null, start_date = null, end_date = null, agreement_url = null, status = 'draft' } = body || {}
+  await c.env.DB.prepare('INSERT INTO licenses (title_id, channel, rights_granted, revenue_terms, start_date, end_date, agreement_url, status) VALUES (?,?,?,?,?,?,?,?)')
+    .bind(id, channel, rights_granted, revenue_terms, start_date, end_date, agreement_url, status).run()
+  return c.json({ ok: true })
+})
+app.put('/api/licenses/:licId', async (c) => {
+  const licId = Number(c.req.param('licId'))
+  const body = await c.req.json()
+  const { channel = null, rights_granted = null, revenue_terms = null, start_date = null, end_date = null, agreement_url = null, status = null } = body || {}
+  await c.env.DB.prepare('UPDATE licenses SET channel=?, rights_granted=?, revenue_terms=?, start_date=?, end_date=?, agreement_url=?, status=COALESCE(?, status) WHERE id=?')
+    .bind(channel, rights_granted, revenue_terms, start_date, end_date, agreement_url, status, licId).run()
+  return c.json({ ok: true })
+})
+app.delete('/api/licenses/:licId', async (c) => {
+  const licId = Number(c.req.param('licId'))
+  await c.env.DB.prepare('DELETE FROM licenses WHERE id = ?').bind(licId).run()
+  return c.json({ ok: true })
 })
 
 // Updates

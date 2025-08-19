@@ -10,6 +10,7 @@ function svgCamera(){ const s=_svg({width:24,height:24,viewBox:'0 0 24 24'}); s.
 
 async function loadTitles(){ return loadTitlesFiltered() }
 
+
 // Build requirements checklist items on requirements page if present
 (function(){
   const container = document.getElementById('req-checklist');

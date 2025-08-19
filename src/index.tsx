@@ -104,6 +104,7 @@ app.get('/title/:id', (c) => {
       <a href='#doc' class='tab' onclick='event.preventDefault(); location.hash="doc"'>Documents</a>
       <a href='#people' class='tab' onclick='event.preventDefault(); location.hash="people"'>People</a>
       <a href='#av' class='tab' onclick='event.preventDefault(); location.hash="av"'>Avails</a>
+      <a href='#licenses' class='tab' onclick='event.preventDefault(); location.hash="licenses"'>Licenses</a>
     </div>
 
     <section id='panel_profile' class='hidden'>
@@ -199,12 +200,26 @@ app.get('/title/:id', (c) => {
       </form>
     </section>
 
+    <section id='panel_licenses' class='hidden'>
+      <div id='licenses' class='bg-white border rounded'></div>
+      <form id='lic_form' class='mt-3 grid grid-cols-1 md:grid-cols-2 gap-2' onsubmit='event.preventDefault(); (async ()=>{ const b={ channel:lic_channel.value, rights_granted:lic_rights.value, revenue_terms:lic_terms.value, start_date:lic_start.value, end_date:lic_end.value, agreement_url:lic_url.value, status:lic_status.value }; await fetch("/api/titles/${id}/licenses", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(b)}); alert("License added"); })()'>
+        <input id='lic_channel' placeholder='Channel (e.g., Tubi, Prime Video)' class='border p-2 rounded'/>
+        <input id='lic_rights' placeholder='Rights granted' class='border p-2 rounded'/>
+        <input id='lic_terms' placeholder='Revenue terms' class='border p-2 rounded'/>
+        <input id='lic_start' type='date' class='border p-2 rounded'/>
+        <input id='lic_end' type='date' class='border p-2 rounded'/>
+        <input id='lic_url' placeholder='Agreement URL (optional)' class='border p-2 rounded md:col-span-2'/>
+        <select id='lic_status' class='border p-2 rounded'><option>draft</option><option>active</option><option>expired</option></select>
+        <div class='md:col-span-2 text-right'><button class='btn-primary'>Add License</button></div>
+      </form>
+    </section>
+
     <div id='wizard-backdrop' class='modal-backdrop'><div id='wizard' class='modal'></div></div>
 
     <script>
       (function(){
         const id = ${id};
-        const tabs = ['profile','art','cap','doc','people','av'];
+        const tabs = ['profile','art','cap','doc','people','av','licenses'];
         function showTab(){
           const h = (location.hash||'#profile').replace('#','');
           tabs.forEach(t=>{ const el=document.getElementById('panel_'+t); if(el) el.classList.toggle('hidden', t!==h) });
