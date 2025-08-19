@@ -209,7 +209,7 @@ app.get('/title/:id', (c) => {
           const h = (location.hash||'#profile').replace('#','');
           tabs.forEach(t=>{ const el=document.getElementById('panel_'+t); if(el) el.classList.toggle('hidden', t!==h) });
           document.querySelectorAll('.tab').forEach(a=>a.classList.remove('active'));
-          const link = document.querySelector(`a[href='#${h}']`); if(link) link.classList.add('active');
+          const link = document.querySelector("a[href='#"+h+"']"); if(link) link.classList.add('active');
         }
         window.addEventListener('hashchange', showTab);
         showTab();

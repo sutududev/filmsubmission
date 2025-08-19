@@ -128,12 +128,13 @@ app.post('/api/titles/:id/artworks', async (c) => {
   const allowed = ['image/jpeg','image/png','image/webp']
   if (!allowed.includes(file.type)) return c.text('Invalid artwork MIME', 415)
 
-  // Quota check
+  // Quota check (consider replacement)
   const used = await getTitleUsageBytes(c.env, id)
-  if (used + file.size > TITLE_QUOTA_BYTES) return c.text('Quota exceeded', 413)
+  const prev = await c.env.DB.prepare('SELECT r2_key, size_bytes FROM artworks WHERE title_id = ? AND kind = ?').bind(id, kind).first<any>()
+  const prevSize = Number(prev?.size_bytes || 0)
+  if (used - prevSize + file.size > TITLE_QUOTA_BYTES) return c.text('Quota exceeded', 413)
 
   // Replace policy
-  const prev = await c.env.DB.prepare('SELECT r2_key FROM artworks WHERE title_id = ? AND kind = ?').bind(id, kind).first<any>()
   if (prev?.r2_key) await moveToTrash(c.env, prev.r2_key)
 
   const key = `titles/${id}/artworks/${kind}-${Date.now()}`
@@ -181,9 +182,10 @@ app.post('/api/titles/:id/captions', async (c) => {
   if (!/\.(vtt|srt)$/i.test(file.name)) return c.text('Invalid caption extension', 415)
 
   const used = await getTitleUsageBytes(c.env, id)
-  if (used + file.size > TITLE_QUOTA_BYTES) return c.text('Quota exceeded', 413)
+  const prev = await c.env.DB.prepare('SELECT r2_key, size_bytes FROM captions WHERE title_id = ? AND language = ? AND kind = ?').bind(id, language, kind).first<any>()
+  const prevSize = Number(prev?.size_bytes || 0)
+  if (used - prevSize + file.size > TITLE_QUOTA_BYTES) return c.text('Quota exceeded', 413)
 
-  const prev = await c.env.DB.prepare('SELECT r2_key FROM captions WHERE title_id = ? AND language = ? AND kind = ?').bind(id, language, kind).first<any>()
   if (prev?.r2_key) await moveToTrash(c.env, prev.r2_key)
 
   const key = `titles/${id}/captions/${language}-${kind}-${Date.now()}`
@@ -222,9 +224,10 @@ app.post('/api/titles/:id/documents', async (c) => {
   if (!allowed.includes(file.type)) return c.text('Invalid document MIME', 415)
 
   const used = await getTitleUsageBytes(c.env, id)
-  if (used + file.size > TITLE_QUOTA_BYTES) return c.text('Quota exceeded', 413)
+  const prev = await c.env.DB.prepare('SELECT r2_key, size_bytes FROM documents WHERE title_id = ? AND doc_type = ?').bind(id, doc_type).first<any>()
+  const prevSize = Number(prev?.size_bytes || 0)
+  if (used - prevSize + file.size > TITLE_QUOTA_BYTES) return c.text('Quota exceeded', 413)
 
-  const prev = await c.env.DB.prepare('SELECT r2_key FROM documents WHERE title_id = ? AND doc_type = ?').bind(id, doc_type).first<any>()
   if (prev?.r2_key) await moveToTrash(c.env, prev.r2_key)
 
   const key = `titles/${id}/documents/${doc_type}-${Date.now()}`
@@ -357,6 +360,40 @@ app.post('/api/seed-if-empty', async (c) => {
   const id = r.meta.last_row_id
   await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(id, 'created_title', 'seed').run()
   return c.json({ ok: true, id })
+})
+
+app.post('/api/seed-sample', async (c) => {
+  async function ensureTitle(name: string): Promise<number> {
+    const existing = await c.env.DB.prepare('SELECT id FROM titles WHERE name = ?').bind(name).first<any>()
+    if (existing?.id) return existing.id
+    const r = await c.env.DB.prepare('INSERT INTO titles (name, status) VALUES (?, ?)').bind(name, 'incomplete').run()
+    const id = r.meta.last_row_id
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(id, 'created_title', 'seed').run()
+    return id
+  }
+  async function putImageToR2(key: string, url: string): Promise<{ size: number; type: string }>{
+    const resp = await fetch(url)
+    if (!resp.ok) throw new Error('fetch image failed')
+    const ct = resp.headers.get('content-type') || 'image/jpeg'
+    const ab = await resp.arrayBuffer()
+    await c.env.R2?.put(key, ab, { httpMetadata: { contentType: ct }})
+    return { size: ab.byteLength, type: ct }
+  }
+  async function upsertPoster(titleId: number, imageUrl: string){
+    const key = `titles/${titleId}/artworks/poster-seed-${Date.now()}`
+    const meta = await putImageToR2(key, imageUrl)
+    await c.env.DB.prepare(`INSERT INTO artworks (title_id, kind, r2_key, status, size_bytes, content_type) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(title_id, kind) DO UPDATE SET r2_key=excluded.r2_key, status='uploaded', size_bytes=excluded.size_bytes, content_type=excluded.content_type`)
+      .bind(titleId, 'poster', key, 'uploaded', meta.size, meta.type).run()
+  }
+
+  const saigonId = await ensureTitle('Saigon Neon')
+  await upsertPoster(saigonId, 'https://picsum.photos/400/600')
+
+  const harborId = await ensureTitle('The Quiet Harbor')
+  await upsertPoster(harborId, 'https://picsum.photos/400/600?2')
+
+  return c.json({ ok: true, ids: [saigonId, harborId] })
 })
 
 // Updates
