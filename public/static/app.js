@@ -62,8 +62,9 @@ async function loadTitlesFiltered(){
     const thumb = t.poster_key
       ? h('img',{src:`/api/file/${t.poster_key}`, class:'w-16 h-16 object-cover bg-gray-100 rounded-md'})
       : h('div',{class:'w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center text-gray-400'}, svgCamera());
-    const badgeColor = t.status==='ready' ? 'bg-green-100 text-green-700' : t.status==='incomplete' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700';
-    const status=h('span',{class:`px-2 py-0.5 rounded text-xs ${badgeColor}`}, t.status);
+    const statusVal = t.computed_status || t.status || 'incomplete';
+    const badgeColor = statusVal==='ready' ? 'bg-green-100 text-green-700' : statusVal==='incomplete' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700';
+    const status=h('span',{class:`px-2 py-0.5 rounded text-xs ${badgeColor}`}, statusVal);
     const left=h('div',{class:'flex items-center gap-3'}, thumb,
       h('div',{}, h('div',{class:'font-semibold text-lg'}, t.name), h('div',{class:'text-xs text-gray-500 flex items-center gap-2'}, `#${t.id}`, status))
     );
@@ -87,10 +88,10 @@ async function loadArtworks(id){
       h('div',{class:'desc'},'Poster, landscape 16:9, banner. JPG/PNG/WebP up to 10MB.'),
       h('button',{class:'btn-primary', onclick:()=>APP.wizardOpen(id)}, svgPlus(), ' Upload via Wizard')
     );
-    wrap.appendChild(empty); return;
+    wrap.appendChild(empty); APP.renderReadiness(id); return;
   }
   const grid=h('div',{class:'grid grid-cols-2 md:grid-cols-4 gap-4 p-3'});
-  rows.forEach(r=>{ const statusChip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${r.status==='approved'?'bg-green-100 text-green-700':r.status==='rejected'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-700'}`}, r.status||'uploaded'); const actions=h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-green-700 mr-2', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) }); loadArtworks(id)}},'approve'), h('button',{class:'text-amber-700 mr-3', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'rejected'}) }); loadArtworks(id)}},'reject'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/artworks/${r.id}`,{method:'DELETE'}); loadArtworks(id); loadUsage(id) }},'delete')); const card=h('div',{class:'border rounded bg-white p-2 flex flex-col items-center'}, h('div',{class:'text-xs text-gray-600 self-start mb-1 flex items-center gap-2'}, r.kind, statusChip), h('img',{src:`/api/file/${r.r2_key}`, class:'w-40 h-60 object-cover bg-gray-100 border rounded', alt:r.kind}), h('div',{class:'mt-2 text-xs text-gray-500'}, `${(r.size_bytes||0)/1024|0} KB`), h('div',{class:'mt-2'}, actions)); grid.appendChild(card) }); wrap.appendChild(grid) }
+  rows.forEach(r=>{ const statusChip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${r.status==='approved'?'bg-green-100 text-green-700':r.status==='rejected'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-700'}`}, r.status||'uploaded'); const actions=h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-green-700 mr-2', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) }); loadArtworks(id)}},'approve'), h('button',{class:'text-amber-700 mr-3', onclick: async ()=>{ await api(`/api/artworks/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'rejected'}) }); loadArtworks(id)}},'reject'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/artworks/${r.id}`,{method:'DELETE'}); loadArtworks(id); loadUsage(id) }},'delete')); const card=h('div',{class:'border rounded bg-white p-2 flex flex-col items-center'}, h('div',{class:'text-xs text-gray-600 self-start mb-1 flex items-center gap-2'}, r.kind, statusChip), h('img',{src:`/api/file/${r.r2_key}`, class:'w-40 h-60 object-cover bg-gray-100 border rounded', alt:r.kind}), h('div',{class:'mt-2 text-xs text-gray-500'}, `${(r.size_bytes||0)/1024|0} KB`), h('div',{class:'mt-2'}, actions)); grid.appendChild(card) }); wrap.appendChild(grid); APP.renderReadiness(id) }
 
 async function loadCaptions(id){
   const rows=await api(`/api/titles/${id}/captions`); const wrap=document.getElementById('captions'); wrap.innerHTML='';
@@ -100,7 +101,7 @@ async function loadCaptions(id){
       h('div',{class:'desc'},'Upload .vtt or .srt up to 2MB. Add multiple languages for reach.'),
       h('button',{class:'btn-primary', onclick:()=>document.getElementById('cap_file')?.click()}, svgPlus(), ' Upload Caption')
     );
-    wrap.appendChild(empty); return;
+    wrap.appendChild(empty); APP.renderReadiness(id); return;
   }
   rows.forEach(r=>{ const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, h('div',{}, `${r.language}/${r.kind} · ${(r.size_bytes||0)/1024|0} KB`), h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/captions/${r.id}`,{method:'DELETE'}); loadCaptions(id); loadUsage(id) }},'delete'))); wrap.appendChild(row) })
 }
@@ -110,15 +111,15 @@ async function loadDocuments(id){ const rows=await api(`/api/titles/${id}/docume
 rows.forEach(r=>{ const statusChip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${r.status==='approved'?'bg-green-100 text-green-700':r.status==='rejected'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-700'}`}, r.status||'uploaded'); const actions=h('div',{}, h('a',{href:`/api/file/${r.r2_key}`, class:'text-blue-600 mr-3'},'view'), h('button',{class:'text-green-700 mr-2', onclick: async ()=>{ await api(`/api/documents/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) }); loadDocuments(id)}},'approve'), h('button',{class:'text-amber-700 mr-3', onclick: async ()=>{ await api(`/api/documents/${r.id}/status`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'rejected'}) }); loadDocuments(id)}},'reject'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/documents/${r.id}`,{method:'DELETE'}); loadDocuments(id); loadUsage(id) }},'delete'));
   const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, h('div',{}, `${r.doc_type} · ${(r.size_bytes||0)/1024|0} KB `, statusChip), actions); wrap.appendChild(row) })
 // Checklist
-const have=new Set(rows.map(r=>r.doc_type)); const checklist=h('div',{class:'mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2'}); DOC_TYPES.forEach(t=>{ const ok=have.has(t); const chip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${ok?'bg-green-100 text-green-700':'bg-gray-100 text-gray-700'}`}, ok?'present':'missing'); const item=h('div',{class:'p-2 border rounded bg-white flex items-center justify-between'}, h('span',{}, t), chip); checklist.appendChild(item) }); wrap.appendChild(h('div',{class:'mt-2 text-sm text-gray-600'}, 'Checklist (optional):')); wrap.appendChild(checklist) }
+const have=new Set(rows.map(r=>r.doc_type)); const checklist=h('div',{class:'mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2'}); DOC_TYPES.forEach(t=>{ const ok=have.has(t); const chip=h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${ok?'bg-green-100 text-green-700':'bg-gray-100 text-gray-700'}`}, ok?'present':'missing'); const item=h('div',{class:'p-2 border rounded bg-white flex items-center justify-between'}, h('span',{}, t), chip); checklist.appendChild(item) }); wrap.appendChild(h('div',{class:'mt-2 text-sm text-gray-600'}, 'Checklist (optional):')); wrap.appendChild(checklist); APP.renderReadiness(id) }
 
 async function uploadMultipart(url, fields, fileInput){ const fd=new FormData(); for(const [k,v] of Object.entries(fields)) fd.append(k,v); const f=fileInput.files[0]; if(!f) return alert('Select a file'); fd.append('file', f, f.name); await api(url,{ method:'POST', body:fd }); fileInput.value=''; }
 
 async function saveProfile(id){ const body={}; ['sales_title','synopsis','genres','keywords','format','spoken_language','dubbed_languages','caption_languages','origin_country','runtime_minutes','release_date','rating_system','rating','production_company','website'].forEach(k=>{ const el=document.getElementById('pf_'+k); if(el) body[k]=el.value||null }); await api(`/api/titles/${id}/profile`,{ method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }); alert('Saved'); }
 async function loadProfile(id){ const p=await api(`/api/titles/${id}/profile`); const set=(k,v='')=>{ const el=document.getElementById('pf_'+k); if(el) el.value=v||'' }; if(p){ Object.entries(p).forEach(([k,v])=>{ if(k!=='title_id') set(k, v) }) }
  }
-async function loadAvails(id){ const rows=await api(`/api/titles/${id}/avails`); const wrap=document.getElementById('avails'); wrap.innerHTML=''; rows.forEach(r=>{ const actions=h('div',{}, h('button',{class:'text-blue-600 mr-3', onclick: ()=>APP.editAvail(id, r)},'edit'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/avails/${r.id}`,{method:'DELETE'}); loadAvails(id)}},'delete')); const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, `${r.license_type} · ${r.territories} · ${r.start_date} - ${r.end_date||''} ${r.exclusive?'(exclusive)':''}`, actions); wrap.appendChild(row) }) }
-async function createAvail(id){ const license_type=document.getElementById('av_type').value; const territories=document.getElementById('av_terr').value; const start_date=document.getElementById('av_start').value; const end_date=document.getElementById('av_end').value||null; const exclusive=document.getElementById('av_excl').checked; await api(`/api/titles/${id}/avails`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ license_type, territories, start_date, end_date, exclusive }) }); document.getElementById('av_terr').value=''; loadAvails(id)}
+async function loadAvails(id){ const rows=await api(`/api/titles/${id}/avails`); const wrap=document.getElementById('avails'); wrap.innerHTML=''; rows.forEach(r=>{ const actions=h('div',{}, h('button',{class:'text-blue-600 mr-3', onclick: ()=>APP.editAvail(id, r)},'edit'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/avails/${r.id}`,{method:'DELETE'}); loadAvails(id); APP.renderReadiness(id)}},'delete')); const row=h('div',{class:'flex items-center justify-between p-2 border-b'}, `${r.license_type} · ${r.territories} · ${r.start_date} - ${r.end_date||''} ${r.exclusive?'(exclusive)':''}`, actions); wrap.appendChild(row) }) }
+async function createAvail(id){ const license_type=document.getElementById('av_type').value; const territories=document.getElementById('av_terr').value; const start_date=document.getElementById('av_start').value; const end_date=document.getElementById('av_end').value||null; const exclusive=document.getElementById('av_excl').checked; await api(`/api/titles/${id}/avails`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ license_type, territories, start_date, end_date, exclusive }) }); document.getElementById('av_terr').value=''; loadAvails(id); APP.renderReadiness(id)}
 
 async function editAvail(titleId, r){
   const license_type = prompt('license_type (avod/svod/tvod)', r.license_type) || r.license_type;
@@ -233,4 +234,28 @@ async function addFestival(id){ const festival_name=document.getElementById('fes
 
 async function loadLicenses(id){ const rows=await api(`/api/titles/${id}/licenses`); const wrap=document.getElementById('licenses'); if(!wrap) return; wrap.innerHTML=''; if(!rows.length){ wrap.innerHTML='<div class="p-3 text-sm text-gray-600">No licenses yet.</div>'; return } rows.forEach(r=>{ const actions=h('div',{}, h('button',{class:'text-blue-600 mr-3', onclick: async ()=>{ const channel=prompt('Channel', r.channel||'')||r.channel; const rights_granted=prompt('Rights granted', r.rights_granted||'')||r.rights_granted; const revenue_terms=prompt('Revenue terms', r.revenue_terms||'')||r.revenue_terms; const start_date=prompt('Start date YYYY-MM-DD', r.start_date||'')||r.start_date; const end_date=prompt('End date YYYY-MM-DD or empty', r.end_date||''); const agreement_url=prompt('Agreement URL', r.agreement_url||'')||r.agreement_url; const status=prompt('Status (draft/active/expired)', r.status||'draft')||r.status; await api(`/api/licenses/${r.id}`,{ method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ channel, rights_granted, revenue_terms, start_date, end_date, agreement_url, status }) }); loadLicenses(id) }},'edit'), h('button',{class:'text-red-600', onclick: async ()=>{ await api(`/api/licenses/${r.id}`,{method:'DELETE'}); loadLicenses(id) }},'delete')); const row=h('div',{class:'flex items-center justify-between p-2 border-b text-sm'}, `${r.channel||'—'} · ${r.rights_granted||''} · ${r.start_date||''}${r.end_date?(' - '+r.end_date):''} · ${r.status||'draft'}`, actions); wrap.appendChild(row) }) }
 
-window.APP={ loadTitles, loadTitlesFiltered, createTitle, loadUsage, loadArtworks, loadCaptions, loadDocuments, uploadMultipart, loadProfile, saveProfile, loadAvails, createAvail, editAvail, wizardOpen, wizardClose, loadTasks, loadCast, addCast, loadCrew, addCrew, loadFestivals, addFestival, loadLicenses }
+async function renderReadiness(id){
+  const box=document.getElementById('readiness'); if(!box) return;
+  try{
+    const [arts, caps, docs, avs] = await Promise.all([
+      api(`/api/titles/${id}/artworks`),
+      api(`/api/titles/${id}/captions`),
+      api(`/api/titles/${id}/documents`),
+      api(`/api/titles/${id}/avails`)
+    ]);
+    const havePoster = arts.some(a=>a.kind==='poster' && a.status!=='missing' && a.r2_key);
+    const haveChain = docs.some(d=>d.doc_type==='chain_of_title' && d.status!=='missing' && d.r2_key);
+    const haveEN = caps.some(c=>c.language==='en' && c.kind==='subtitles' && c.status!=='missing' && c.r2_key);
+    const haveAvail = avs.length>0;
+    const score = [havePoster, haveEN, haveChain, haveAvail].filter(Boolean).length;
+    const badge = h('span',{class:`px-2 py-0.5 rounded text-xs ${score===4?'bg-green-100 text-green-700':'bg-amber-100 text-amber-800'}`}, score===4?'ready':'incomplete');
+    const chip = (ok,label)=> h('span',{class:`inline-block px-2 py-0.5 rounded text-xs ${ok?'bg-green-100 text-green-700':'bg-gray-100 text-gray-700'}`}, label);
+    box.innerHTML='';
+    box.appendChild(h('div',{class:'p-3 bg-white border rounded flex items-center justify-between'},
+      h('div',{}, h('div',{class:'text-sm text-gray-600'}, 'Readiness'), h('div',{class:'font-semibold flex items-center gap-2'}, `${score}/4 complete`, badge)),
+      h('div',{class:'flex items-center gap-2'}, chip(havePoster,'Poster'), chip(haveEN,'EN Subtitles'), chip(haveChain,'Chain-of-Title'), chip(haveAvail,'Avail'))
+    ));
+  }catch(e){ box.textContent='Failed to compute readiness'; }
+}
+
+window.APP={ loadTitles, loadTitlesFiltered, createTitle, loadUsage, loadArtworks, loadCaptions, loadDocuments, uploadMultipart, loadProfile, saveProfile, loadAvails, createAvail, editAvail, wizardOpen, wizardClose, loadTasks, loadCast, addCast, loadCrew, addCrew, loadFestivals, addFestival, loadLicenses, renderReadiness }

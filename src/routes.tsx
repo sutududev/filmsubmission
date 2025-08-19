@@ -431,6 +431,100 @@ app.post('/api/seed-sample', async (c) => {
   return c.json({ ok: true, ids: [saigonId, harborId] })
 })
 
+// Seed full demo content
+app.post('/api/seed-full', async (c) => {
+  async function ensureTitle(name: string): Promise<number> {
+    const existing = await c.env.DB.prepare('SELECT id FROM titles WHERE name = ?').bind(name).first<any>()
+    if (existing?.id) return existing.id
+    const r = await c.env.DB.prepare('INSERT INTO titles (name, status) VALUES (?, ?)').bind(name, 'incomplete').run()
+    const id = r.meta.last_row_id
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(id, 'created_title', 'seed-full').run()
+    return id
+  }
+  async function putToR2(key: string, data: ArrayBuffer, contentType: string){
+    await c.env.R2?.put(key, data, { httpMetadata: { contentType }})
+    return { size: data.byteLength, type: contentType }
+  }
+  async function fetchToR2(key: string, url: string){
+    const resp = await fetch(url)
+    if(!resp.ok) throw new Error('fetch failed '+url)
+    const ct = resp.headers.get('content-type') || 'application/octet-stream'
+    const ab = await resp.arrayBuffer()
+    await c.env.R2?.put(key, ab, { httpMetadata: { contentType: ct }})
+    return { size: ab.byteLength, type: ct }
+  }
+  async function upsertArtwork(titleId: number, kind: string, imageUrl: string){
+    const key = `titles/${titleId}/artworks/${kind}-seed-${Date.now()}`
+    const meta = await fetchToR2(key, imageUrl)
+    await c.env.DB.prepare(`INSERT INTO artworks (title_id, kind, r2_key, status, size_bytes, content_type) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(title_id, kind) DO UPDATE SET r2_key=excluded.r2_key, status='uploaded', size_bytes=excluded.size_bytes, content_type=excluded.content_type`)
+      .bind(titleId, kind, key, 'uploaded', meta.size, meta.type).run()
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(titleId, 'artwork_uploaded', kind).run()
+  }
+  async function upsertCaption(titleId: number, language: string, kind: string){
+    const key = `titles/${titleId}/captions/${language}-${kind}-seed-${Date.now()}`
+    const vtt = `WEBVTT\n\n00:00:00.000 --> 00:00:02.000\n${language.toUpperCase()} ${kind}\n`
+    const meta = await putToR2(key, new TextEncoder().encode(vtt).buffer, 'text/vtt')
+    await c.env.DB.prepare(`INSERT INTO captions (title_id, language, kind, r2_key, status, size_bytes, content_type) VALUES (?,?,?,?,?,?,?)
+      ON CONFLICT(title_id, language, kind) DO UPDATE SET r2_key=excluded.r2_key, status='uploaded', size_bytes=excluded.size_bytes, content_type=excluded.content_type`)
+      .bind(titleId, language, kind, key, 'uploaded', meta.size, meta.type).run()
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(titleId, 'captions_uploaded', `${language}/${kind}`).run()
+  }
+  async function upsertDocument(titleId: number, doc_type: string){
+    const key = `titles/${titleId}/documents/${doc_type}-seed-${Date.now()}`
+    const pdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+    const meta = await fetchToR2(key, pdfUrl)
+    await c.env.DB.prepare(`INSERT INTO documents (title_id, doc_type, r2_key, status, size_bytes, content_type) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(title_id, doc_type) DO UPDATE SET r2_key=excluded.r2_key, status='uploaded', size_bytes=excluded.size_bytes, content_type=excluded.content_type`)
+      .bind(titleId, doc_type, key, 'uploaded', meta.size, meta.type).run()
+    await c.env.DB.prepare('INSERT INTO updates (title_id, event_type, info) VALUES (?,?,?)').bind(titleId, 'documents_uploaded', doc_type).run()
+  }
+  async function ensureAvail(titleId: number){
+    const exists = await c.env.DB.prepare('SELECT id FROM avails WHERE title_id = ? LIMIT 1').bind(titleId).first<any>()
+    if (exists?.id) return
+    await c.env.DB.prepare('INSERT INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+      .bind(titleId, 'avod', 'worldwide', '2025-01-01', null, 0).run()
+  }
+  async function setProfile(titleId: number, data: any){
+    await c.env.DB.prepare('INSERT OR IGNORE INTO title_profiles (title_id) VALUES (?)').bind(titleId).run()
+    const cols = ['sales_title','synopsis','genres','format','spoken_language','runtime_minutes','release_date']
+    const set = cols.map(k => `${k} = ?`).join(',')
+    const vals = cols.map(k => data[k] ?? null)
+    await c.env.DB.prepare(`UPDATE title_profiles SET ${set} WHERE title_id = ?`).bind(...vals, titleId).run()
+  }
+  async function addCast(titleId: number, entries: Array<{name:string, role?:string|null}>){
+    for(const e of entries){ await c.env.DB.prepare('INSERT OR IGNORE INTO cast (title_id, name, role) VALUES (?,?,?)').bind(titleId, e.name, e.role??null).run() }
+  }
+  async function addCrew(titleId: number, entries: Array<{name:string, department?:string|null}>){
+    for(const e of entries){ await c.env.DB.prepare('INSERT OR IGNORE INTO crew (title_id, name, department) VALUES (?,?,?)').bind(titleId, e.name, e.department??null).run() }
+  }
+  async function addFestivals(titleId: number, entries: Array<{festival_name:string, award?:string|null, year?:number|null}>){
+    for(const e of entries){ await c.env.DB.prepare('INSERT INTO festivals (title_id, festival_name, award, year) VALUES (?,?,?,?)').bind(titleId, e.festival_name, e.award??null, e.year??null).run().catch(()=>{}) }
+  }
+
+  const titles = [
+    { name: 'Saigon Neon', poster: 'https://picsum.photos/400/600', profile: { sales_title: 'Saigon Neon', synopsis: 'A neon-soaked chase through District 1.', genres: 'Thriller,Action', format: 'Movie', spoken_language: 'Vietnamese', runtime_minutes: 98, release_date: '2024-10-01' }, cast: [{name:'Anh Tran', role:'Lead'}, {name:'Mai Pham', role:'Detective'}], crew: [{name:'K. Nguyen', department:'Director'}, {name:'L. Truong', department:'Composer'}], fests: [{festival_name:'HCMC Film Fest', award:'Audience Award', year:2024}] },
+    { name: 'The Quiet Harbor', poster: 'https://picsum.photos/400/600?2', profile: { sales_title: 'The Quiet Harbor', synopsis: 'A meditative drama set on a foggy coastline.', genres: 'Drama', format: 'Movie', spoken_language: 'English', runtime_minutes: 112, release_date: '2023-03-15' }, cast: [{name:'Evan Hall', role:'Fisherman'}], crew: [{name:'R. Cole', department:'Director'}], fests: [{festival_name:'Telluride', award:null, year:2023}] },
+    { name: 'Lotus in the Storm', poster: 'https://picsum.photos/400/600?3', profile: { sales_title: 'Lotus in the Storm', synopsis: 'A family saga spanning Saigon to Orange County.', genres: 'Drama,Family', format: 'Movie', spoken_language: 'English/Vietnamese', runtime_minutes: 105, release_date: '2025-01-20' }, cast: [{name:'Kim Le', role:'Mother'}], crew: [{name:'D. Vu', department:'Director'}], fests: [{festival_name:'Busan', award:'Nominated', year:2024}] }
+  ]
+
+  const results: any[] = []
+  for(const t of titles){
+    const id = await ensureTitle(t.name)
+    await upsertArtwork(id, 'poster', t.poster)
+    await upsertCaption(id, 'en', 'subtitles')
+    await upsertDocument(id, 'chain_of_title')
+    await ensureAvail(id)
+    await setProfile(id, t.profile)
+    await addCast(id, t.cast)
+    await addCrew(id, t.crew)
+    await addFestivals(id, t.fests)
+    results.push({ id, name: t.name })
+  }
+
+  return c.json({ ok: true, results })
+})
+
 // Licenses
 app.get('/api/titles/:id/licenses', async (c) => {
   const id = Number(c.req.param('id'))

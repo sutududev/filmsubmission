@@ -96,6 +96,7 @@ app.get('/title/:id', (c) => {
       <button class='btn-primary' onclick='APP.wizardOpen(${id})'>Open Wizard</button>
     </div>
     <div class='usage mb-3'><div id='usageBar' style='width:0%'></div></div>
+    <div id='readiness' class='mb-3'></div>
 
     <div class='border-b mb-3 flex gap-3 text-sm'>
       <a href='#profile' class='tab' onclick='event.preventDefault(); location.hash="profile"'>Profile</a>
@@ -228,7 +229,7 @@ app.get('/title/:id', (c) => {
         }
         window.addEventListener('hashchange', showTab);
         showTab();
-        APP.loadUsage(id); APP.loadArtworks(id); APP.loadCaptions(id); APP.loadDocuments(id); APP.loadAvails(id); APP.loadProfile(id); APP.loadCast(id); APP.loadCrew(id); APP.loadFestivals(id); APP.loadLicenses(id);
+        APP.loadUsage(id); APP.loadArtworks(id); APP.loadCaptions(id); APP.loadDocuments(id); APP.loadAvails(id); APP.loadProfile(id); APP.loadCast(id); APP.loadCrew(id); APP.loadFestivals(id); APP.loadLicenses(id); APP.renderReadiness(id);
       })();
     </script>
   `
