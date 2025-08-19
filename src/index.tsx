@@ -67,24 +67,29 @@ function pageLayout(title: string, inner: string, active: string){
 // Pages
 app.get('/', (c) => {
   const inner = `
-  <div class='flex items-center justify-between mb-3'>
-    <div>
-      <div class='text-xl font-bold'>My Titles</div>
-      <div class='text-sm text-gray-600'>Submit films and delivery assets for distribution</div>
+  <div class='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+    <div class='lg:col-span-2'>
+      <div class='flex items-center justify-between mb-3'>
+        <div>
+          <div class='text-xl font-bold'>My Titles</div>
+          <div class='text-sm text-gray-600'>Submit films and delivery assets for distribution</div>
+        </div>
+        <button class='btn-primary' onclick='APP.createTitle()'>Create Title</button>
+      </div>
+      <div class='flex items-center gap-2 mb-3'>
+        <input id='q' placeholder='Search titles' class='border p-2 rounded' oninput='APP.loadTitlesFiltered()'>
+        <select id='status' class='border p-2 rounded' onchange='APP.loadTitlesFiltered()'>
+          <option value=''>All</option><option>ready</option><option>incomplete</option>
+        </select>
+      </div>
+      <div id='titles'></div>
     </div>
-    <button class='btn-primary' onclick='APP.createTitle()'>Create Title</button>
+    <div>
+      <div class='text-sm font-semibold mb-1'>Activity Log</div>
+      <div id='updates' class='bg-white border rounded overflow-hidden'></div>
+    </div>
   </div>
-  <div class='flex items-center gap-2 mb-3'>
-    <input id='q' placeholder='Search titles' class='border p-2 rounded' oninput='APP.loadTitlesFiltered()'>
-    <select id='status' class='border p-2 rounded' onchange='APP.loadTitlesFiltered()'>
-      <option value=''>All</option><option>ready</option><option>incomplete</option>
-    </select>
-  </div>
-  <div id='titles'></div>
-  <div class='mt-6'>
-    <div class='text-sm font-semibold mb-1'>Distribution Updates</div>
-    <div id='updates' class='bg-white border rounded p-3'></div>
-  </div>`
+  <script>APP.loadTitlesFiltered(); APP.loadUpdates();</script>`
   return c.html(pageLayout('Overview', inner, 'home'))
 })
 

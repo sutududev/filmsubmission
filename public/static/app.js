@@ -74,7 +74,7 @@ async function loadTitlesFiltered(){
   });
   wrap.appendChild(ul); loadUpdates();
 }
-async function loadUpdates(){ const list=await api('/api/updates?per_page=5'); const box=document.getElementById('updates'); if(!list.length){ box.textContent='No results.'; return } box.innerHTML=''; list.forEach(u=>{ const li=h('div',{class:'border-b py-2 text-sm'}, `${new Date(u.created_at).toLocaleString()} · ${u.event_type}`); box.appendChild(li) }) }
+async function loadUpdates(){ const list=await api('/api/updates?per_page=10'); const box=document.getElementById('updates'); if(!box) return; box.innerHTML=''; const table=h('div',{}); const header=h('div',{class:'grid grid-cols-3 text-xs text-gray-600 px-3 py-2 border-b bg-gray-50'}, 'Last Update','Channel','Title'); table.appendChild(header); if(!list.length){ const empty=h('div',{class:'p-4 text-sm text-gray-600'}, 'No results.'); table.appendChild(empty); box.appendChild(table); return } list.forEach(u=>{ const row=h('div',{class:'grid grid-cols-3 px-3 py-2 text-sm border-b'}, new Date(u.created_at).toLocaleString(), u.channel||'—', u.title_id?('#'+u.title_id):'—'); table.appendChild(row) }); box.appendChild(table) }
 
 async function createTitle(){ const name=prompt('Title name?','New Title'); if(!name) return; await api('/api/titles',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name}) }); await loadTitles() }
 
