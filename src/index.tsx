@@ -87,9 +87,10 @@ app.get('/', (c) => {
     <div>
       <div class='text-sm font-semibold mb-1'>Activity Log</div>
       <div id='updates' class='bg-white border rounded overflow-hidden'></div>
+      <div class='text-sm font-semibold mb-3 mt-6'>Distribution Updates</div>
+      <div id='dist_updates' class='bg-white border rounded overflow-hidden'></div
     </div>
-  </div>
-  <script>APP.loadTitlesFiltered(); APP.loadUpdates();</script>`
+  </div>`
   return c.html(pageLayout('Overview', inner, 'home'))
 })
 

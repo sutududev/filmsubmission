@@ -9,6 +9,7 @@ function svgPlus(){ const s=_svg({width:16,height:16,viewBox:'0 0 24 24'}); s.ap
 function svgCamera(){ const s=_svg({width:24,height:24,viewBox:'0 0 24 24'}); s.appendChild(_path('M3 7h4.5l2-2H14l2 2H21v12H3z')); s.appendChild(_path('M12 10a4 4 0 1 0 0.001 8.001A4 4 0 0 0 12 10z', {fill:'none'})); return s }
 
 async function loadTitles(){ return loadTitlesFiltered() }
+window.addEventListener('DOMContentLoaded', ()=>{ try{ loadTitlesFiltered(); loadUpdates(); loadDistributionUpdates(); }catch(e){} });
 
 
 // Build requirements checklist items on requirements page if present
@@ -74,7 +75,57 @@ async function loadTitlesFiltered(){
   });
   wrap.appendChild(ul); loadUpdates();
 }
-async function loadUpdates(){ const list=await api('/api/updates?per_page=10'); const box=document.getElementById('updates'); if(!box) return; box.innerHTML=''; const table=h('div',{}); const header=h('div',{class:'grid grid-cols-3 text-xs text-gray-600 px-3 py-2 border-b bg-gray-50'}, 'Last Update','Channel','Title'); table.appendChild(header); if(!list.length){ const empty=h('div',{class:'p-4 text-sm text-gray-600'}, 'No results.'); table.appendChild(empty); box.appendChild(table); return } list.forEach(u=>{ const row=h('div',{class:'grid grid-cols-3 px-3 py-2 text-sm border-b'}, new Date(u.created_at).toLocaleString(), u.channel||'—', u.title_id?('#'+u.title_id):'—'); table.appendChild(row) }); box.appendChild(table) }
+async function loadUpdates(){
+  const per = parseInt(document.getElementById('upd_rows')?.value||'10',10);
+  const list=await api(`/api/updates?per_page=${per}`);
+  renderUpdatesTable('updates', list);
+}
+async function loadDistributionUpdates(){
+  const per = parseInt(document.getElementById('dist_rows')?.value||'10',10);
+  const list=await api(`/api/updates?per_page=${per}`);
+  renderUpdatesTable('dist_updates', list, true);
+}
+function renderUpdatesTable(targetId, list, showPager=false){
+  const box=document.getElementById(targetId);
+  if(!box) return;
+  box.innerHTML='';
+  const table=h('div',{class:'border rounded-xl overflow-hidden bg-white'});
+  const header=h('div',{class:'grid grid-cols-4 text-xs text-gray-600 px-3 py-2 border-b bg-gray-50'}, 'Last Update','Channel','Title','Status');
+  table.appendChild(header);
+  if(!list.length){ const empty=h('div',{class:'p-4 text-sm text-gray-600 text-center'}, 'No results.'); table.appendChild(empty); box.appendChild(table); if(showPager) box.appendChild(buildDistPager(1,1)); return }
+  list.forEach(u=>{
+    const row=h('div',{class:'grid grid-cols-4 px-3 py-2 text-sm border-b'}, new Date(u.created_at).toLocaleString(), u.channel||'—', u.title_name?u.title_name:(u.title_id?('#'+u.title_id):'—'), u.event_type||'—');
+    table.appendChild(row)
+  });
+  box.appendChild(table);
+  if(showPager) box.appendChild(buildDistPager(1,1));
+}
+function buildDistPager(page,total){
+  const wrap=h('div',{class:'flex items-center justify-between text-sm text-gray-700 mt-2'},
+    h('div',{}, 'Rows per page ', (()=>{ const sel=h('select',{id:'dist_rows', class:'border rounded px-2 py-1 ml-2', onchange:()=>loadDistributionUpdates()}, h('option',{value:'10'},'10'), h('option',{value:'25'},'25'), h('option',{value:'50'},'50')); sel.value=String(parseInt(document.getElementById('dist_rows')?.value||'10',10)); return sel })()),
+    h('div',{}, `Page ${page} of ${total}`),
+    h('div',{class:'flex items-center gap-2'},
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '«'),
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '‹'),
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '›'),
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '»')
+    )
+  );
+  return wrap;
+}
+function buildUpdatesPager(page,total){
+  const wrap=h('div',{class:'flex items-center justify-between text-sm text-gray-700 mt-2'},
+    h('div',{}, 'Rows per page ', (()=>{ const sel=h('select',{id:'upd_rows', class:'border rounded px-2 py-1 ml-2', onchange:()=>loadUpdates()}, h('option',{value:'10'},'10'), h('option',{value:'25'},'25'), h('option',{value:'50'},'50')); sel.value=String(parseInt(document.getElementById('upd_rows')?.value||'10',10)); return sel })()),
+    h('div',{}, `Page ${page} of ${total}`),
+    h('div',{class:'flex items-center gap-2'},
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '«'),
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '‹'),
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '›'),
+      h('button',{class:'px-2 py-1 border rounded', disabled:true}, '»')
+    )
+  );
+  return wrap;
+}
 
 async function createTitle(){ const name=prompt('Title name?','New Title'); if(!name) return; await api('/api/titles',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name}) }); await loadTitles() }
 

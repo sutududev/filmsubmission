@@ -555,9 +555,14 @@ app.delete('/api/licenses/:licId', async (c) => {
 
 // Updates
 app.get('/api/updates', async (c) => {
-  const { per_page = '10' } = c.req.query()
+  const { per_page = '10', title_id = '' } = c.req.query()
   const limit = Math.min(100, Math.max(1, parseInt(String(per_page), 10) || 10))
-  const rows = await c.env.DB.prepare('SELECT * FROM updates ORDER BY id DESC LIMIT ?').bind(limit).all()
+  const hasTitle = String(title_id||'').trim() !== ''
+  const sql = `SELECT u.*, t.name AS title_name FROM updates u LEFT JOIN titles t ON t.id = u.title_id ${hasTitle?'WHERE u.title_id = ?':''} ORDER BY u.id DESC LIMIT ?`
+  const args: any[] = []
+  if (hasTitle) args.push(Number(title_id))
+  args.push(limit)
+  const rows = await c.env.DB.prepare(sql).bind(...args).all()
   return c.json(rows.results)
 })
 
