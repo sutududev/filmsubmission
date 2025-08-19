@@ -228,7 +228,7 @@ app.get('/title/:id', (c) => {
         }
         window.addEventListener('hashchange', showTab);
         showTab();
-        APP.loadUsage(id); APP.loadArtworks(id); APP.loadCaptions(id); APP.loadDocuments(id); APP.loadAvails(id); APP.loadProfile(id); APP.loadCast(id); APP.loadCrew(id); APP.loadFestivals(id);
+        APP.loadUsage(id); APP.loadArtworks(id); APP.loadCaptions(id); APP.loadDocuments(id); APP.loadAvails(id); APP.loadProfile(id); APP.loadCast(id); APP.loadCrew(id); APP.loadFestivals(id); APP.loadLicenses(id);
       })();
     </script>
   `

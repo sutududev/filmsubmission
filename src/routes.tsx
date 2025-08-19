@@ -422,6 +422,12 @@ app.post('/api/seed-sample', async (c) => {
   const harborId = await ensureTitle('The Quiet Harbor')
   await upsertPoster(harborId, 'https://picsum.photos/400/600?2')
 
+  // also ensure a basic avail so readiness can flip to ready when other elements present
+  await c.env.DB.prepare('INSERT INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+    .bind(saigonId, 'avod', 'worldwide', '2025-01-01', null, 0).run().catch(()=>{})
+  await c.env.DB.prepare('INSERT INTO avails (title_id, license_type, territories, start_date, end_date, exclusive) VALUES (?,?,?,?,?,?)')
+    .bind(harborId, 'avod', 'US,CA,GB', '2025-01-01', null, 0).run().catch(()=>{})
+
   return c.json({ ok: true, ids: [saigonId, harborId] })
 })
 
