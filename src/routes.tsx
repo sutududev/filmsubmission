@@ -60,10 +60,9 @@ app.get('/api/titles', async (c) => {
   const params: any[] = []
   let where = 'WHERE 1=1'
   if (q) { where += ' AND t.name LIKE ?'; params.push(`%${q}%`) }
-  // status filter applies to computed status
   const sql = `
     SELECT
-      t.*,
+      t.id, t.name, t.status AS original_status, t.created_at,
       (
         SELECT a.r2_key FROM artworks a
         WHERE a.title_id = t.id AND a.kind = 'poster'
@@ -95,12 +94,11 @@ app.get('/api/titles', async (c) => {
         (SELECT CASE WHEN EXISTS(
           SELECT 1 FROM avails v WHERE v.title_id = t.id
         ) THEN 1 ELSE 0 END)
-      ) = 4 THEN 'ready' ELSE 'incomplete' END AS status
+      ) = 4 THEN 'ready' ELSE 'incomplete' END AS computed_status
     FROM titles t
     ${where}
   `
-  // Apply status filter on computed status using outer SELECT
-  const wrapped = `SELECT * FROM ( ${sql} ) WHERE (? = '' OR status = ?) ORDER BY id DESC LIMIT ?`
+  const wrapped = `SELECT * FROM ( ${sql} ) WHERE (? = '' OR computed_status = ?) ORDER BY id DESC LIMIT ?`
   params.push(status, status, limit)
   const rows = await c.env.DB.prepare(wrapped).bind(...params).all()
   return c.json(rows.results)
